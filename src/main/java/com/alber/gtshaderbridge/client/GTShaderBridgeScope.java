@@ -20,6 +20,7 @@ public final class GTShaderBridgeScope implements AutoCloseable {
     private static volatile boolean entityWriteDisabled;
     private static volatile boolean loggedEntityWrite;
     private static volatile boolean loggedEntityWriteDisabled;
+    private static volatile boolean loggedBakedQuadEntityWriteSkipped;
 
     private final GTShaderBridgeScope parent;
     private final int materialGroup;
@@ -84,6 +85,87 @@ public final class GTShaderBridgeScope implements AutoCloseable {
                 entityDataTop.restoreQuietly();
             }
         }
+    }
+
+    public static void addVertexDataWithEntityData(BufferBuilder buffer, int[] vertexData, int materialId) {
+        if (buffer == null || vertexData == null) {
+            return;
+        }
+
+        if (!GTShaderBridgeConfig.enabled || !GTShaderBridgeConfig.writeEntityData || entityWriteDisabled) {
+            invokeAddVertexData(buffer, vertexData);
+            return;
+        }
+
+        if (!isShaderBlockFormat(null, buffer)) {
+            if (!loggedBakedQuadEntityWriteSkipped) {
+                loggedBakedQuadEntityWriteSkipped = true;
+                GTShaderBridge.LOGGER.warn("[GTShaderBridge] BakedQuad entity-data write skipped: current BufferBuilder is not OptiFine shader block format");
+            }
+            invokeAddVertexData(buffer, vertexData);
+            return;
+        }
+
+        EntityDataTop entityDataTop;
+        int[] routedVertexData = vertexData.clone();
+        try {
+            entityDataTop = EntityDataTop.capture(buffer);
+            entityDataTop.set(packEntity(materialId));
+        } catch (Throwable e) {
+            disableEntityWrites(e);
+            invokeAddVertexData(buffer, vertexData);
+            return;
+        }
+
+        if (!loggedEntityWrite) {
+            loggedEntityWrite = true;
+            GTShaderBridge.LOGGER.info("GTShaderBridge: writing OptiFine entity data on scoped BufferBuilder vertices, materialId={}", materialId);
+        }
+
+        try {
+            invokeAddVertexData(buffer, routedVertexData);
+        } finally {
+            entityDataTop.restoreQuietly();
+        }
+    }
+
+    public static AutoCloseable beginTemporaryEntityData(BufferBuilder buffer, int materialId) {
+        if (buffer == null) {
+            return null;
+        }
+
+        if (!GTShaderBridgeConfig.enabled || !GTShaderBridgeConfig.writeEntityData || entityWriteDisabled) {
+            return null;
+        }
+
+        if (!isShaderBlockFormat(null, buffer)) {
+            if (!loggedBakedQuadEntityWriteSkipped) {
+                loggedBakedQuadEntityWriteSkipped = true;
+                GTShaderBridge.LOGGER.warn("[GTShaderBridge] BakedQuad entity-data write skipped: current BufferBuilder is not OptiFine shader block format");
+            }
+            return null;
+        }
+
+        final EntityDataTop entityDataTop;
+        try {
+            entityDataTop = EntityDataTop.capture(buffer);
+            entityDataTop.set(packEntity(materialId));
+        } catch (Throwable e) {
+            disableEntityWrites(e);
+            return null;
+        }
+
+        if (!loggedEntityWrite) {
+            loggedEntityWrite = true;
+            GTShaderBridge.LOGGER.info("GTShaderBridge: writing OptiFine entity data on scoped BufferBuilder vertices, materialId={}", materialId);
+        }
+
+        return new AutoCloseable() {
+            @Override
+            public void close() {
+                entityDataTop.restoreQuietly();
+            }
+        };
     }
 
     @Override
@@ -260,6 +342,17 @@ public final class GTShaderBridgeScope implements AutoCloseable {
             method.invoke(buffer);
         } catch (Throwable e) {
             throw new RuntimeException("Failed to invoke BufferBuilder.endVertex", e);
+        }
+    }
+
+    private static void invokeAddVertexData(BufferBuilder buffer, int[] vertexData) {
+        if (buffer == null || vertexData == null) {
+            return;
+        }
+
+        Object result = invoke(buffer, new String[] {"func_178981_a", "addVertexData"}, int[].class, vertexData);
+        if (result == UNKNOWN) {
+            throw new RuntimeException("Failed to invoke BufferBuilder.addVertexData");
         }
     }
 

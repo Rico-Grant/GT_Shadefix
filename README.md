@@ -1,12 +1,12 @@
 # GregTech CEu OptiFine Shader Bridge
 
-Multi-route write-debug build for the Supersymmetry HMCL instance.
+Semantic debug build for the Supersymmetry HMCL instance.
 
-This version writes debug material ids into selected GregTech CEu CCL body renderers at CodeChickenLib's actual vertex writer. It uses the current `BufferBuilder`'s OptiFine `sVertexBuilder` entity-data stack and does not call any global shader entity stack.
+This version writes semantic material ids into selected GregTech CEu CCL body renderers, audited AE2 baked quads, and OpenComputers TESR overlay transport probes. It uses the current `BufferBuilder`'s OptiFine `sVertexBuilder` entity-data stack and does not call any global shader entity stack.
 
 ## Output
 
-`build/libs/gtceu-optifine-shader-bridge-multiroute-debug-1.5.0.jar`
+`build/libs/gtceu-optifine-shader-bridge-semantic-debug.jar`
 
 Do not use the older jars:
 
@@ -16,6 +16,8 @@ Do not use the older jars:
 - `gtceu-optifine-shader-bridge-diagnostic-1.2.0.jar`
 - `gtceu-optifine-shader-bridge-diagnostic-1.3.0.jar`
 - `gtceu-optifine-shader-bridge-write-debug-1.4.0.jar`
+- `gtceu-optifine-shader-bridge-multiroute-debug-1.5.0.jar`
+- `gtceu-optifine-shader-bridge-routeprobe-debug-1.6.4.jar`
 
 ## What It Does
 
@@ -90,7 +92,17 @@ GTShaderBridge: CCL MTE vertex format detected: buffer=..., sVertexBuilder=..., 
 GTShaderBridge: writing OptiFine entity data on CCL MTE vertices, materialId=11990
 ```
 
-For the multi-route build, pipe, bare-wire, and insulated-cable scopes use the same low-level writer and will log the active material id in the format line.
+AE2/OpenComputers semantic debug routes use:
+
+- `12100`: AE cable idle (`channels_00`, `channels_10`).
+- `12101`: AE cable low channel (`channels_01..04`).
+- `12102`: AE cable high channel (`channels_11..14`).
+- `12103`: AE drive LED.
+- `12104`: AE terminal debug-only route.
+- `12110`: OpenComputers baked housing/body.
+- `12112`: OpenComputers TESR overlay transport probe.
+
+For 5-8 channel smart cables, AE2 emits both low and high channel quads; the bridge routes those quads independently.
 
 ## Reverse Findings
 
@@ -144,4 +156,4 @@ This build does not call:
 - `net.optifine.shaders.SVertexBuilder.popEntity(...)`
 - any `glVertexAttrib`, `glUseProgram`, or `glBindBuffer` path
 
-It does not modify shaderpacks. For the current debug test, the shaderpack should map `mat == 11990` to the visible debug color.
+The companion semantic debug shaderpack maps `12112` to pure magenta and `12110` to deep gray with no HDR emission.

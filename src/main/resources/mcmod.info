@@ -2,8 +2,8 @@
   {
     "modid": "gtshaderbridge",
     "name": "GregTech CEu OptiFine Shader Bridge",
-    "description": "Client-only multi-route bridge that writes debug OptiFine shader entity ids for selected GregTech CEu CCL body renderers through the current BufferBuilder's sVertexBuilder.",
-    "version": "1.5.0-multiroute-debug",
+    "description": "Client-only semantic debug bridge that writes OptiFine shader entity ids for selected GregTech CEu CCL renderers, audited AE2 BakedQuad layers, and OpenComputers TESR overlay transport probes.",
+    "version": "1.7.0-semantic-debug",
     "mcversion": "1.12.2",
     "url": "",
     "updateUrl": "",

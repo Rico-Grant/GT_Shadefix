@@ -4,9 +4,14 @@
   "package": "com.alber.gtshaderbridge.mixin",
   "compatibilityLevel": "JAVA_8",
   "client": [
+    "MixinBlockModelRenderer",
+    "MixinBufferBuilder",
+    "MixinCaseRenderer",
     "MixinCCRenderState",
     "MixinMetaTileEntityRenderer",
-    "MixinPipeRenderer"
+    "MixinMicrocontrollerRenderer",
+    "MixinPipeRenderer",
+    "MixinRackMountableRenderEventTileEntity"
   ],
   "injectors": {
     "defaultRequire": 1

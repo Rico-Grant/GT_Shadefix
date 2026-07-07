@@ -1,0 +1,408 @@
+package com.alber.gtshaderbridge.client;
+
+import com.alber.gtshaderbridge.GTShaderBridge;
+import com.alber.gtshaderbridge.GTShaderBridgeConfig;
+import java.lang.reflect.Method;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Deque;
+import java.util.HashSet;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Set;
+import net.minecraft.block.state.IBlockState;
+import net.minecraft.client.renderer.BufferBuilder;
+import net.minecraft.client.renderer.block.model.BakedQuad;
+import net.minecraft.client.renderer.block.model.IBakedModel;
+import net.minecraft.util.EnumFacing;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.IBlockAccess;
+
+public final class BakedQuadShaderRouter {
+    private static final ThreadLocal<RenderContext> ACTIVE_CONTEXT = new ThreadLocal<RenderContext>();
+    private static final ThreadLocal<Deque<AutoCloseable>> ADD_VERTEX_SCOPES = new ThreadLocal<Deque<AutoCloseable>>();
+    private static final Set<String> LOGGED_ROUTES = Collections.synchronizedSet(new HashSet<String>());
+    private static final Set<String> LOGGED_RENDER_MODELS = Collections.synchronizedSet(new HashSet<String>());
+
+    private BakedQuadShaderRouter() {
+    }
+
+    public static void begin(Object renderer, IBlockAccess world, IBakedModel model, IBlockState state, BlockPos pos, long rand) {
+        RenderContext parent = ACTIVE_CONTEXT.get();
+        if (!GTShaderBridgeConfig.enabled || !GTShaderBridgeConfig.writeEntityData
+            || !GTShaderBridgeConfig.routeAeOcBakedQuads || !isTargetState(state)) {
+            ACTIVE_CONTEXT.set(new RenderContext(parent));
+            return;
+        }
+
+        ACTIVE_CONTEXT.set(new RenderContext(parent, renderer, world, model, state, pos, rand));
+    }
+
+    public static void logRenderModelEntry(Object renderer, IBakedModel model, IBlockState state, BlockPos pos) {
+        if (!GTShaderBridgeConfig.enabled || !GTShaderBridgeConfig.routeAeOcBakedQuads || !isTargetState(state)) {
+            return;
+        }
+
+        String stateName = registryName(state);
+        String modelClass = className(model);
+        String key = stateName + "|" + modelClass;
+        if (LOGGED_RENDER_MODELS.add(key)) {
+            GTShaderBridge.LOGGER.info("GTShaderBridge: AE/OC BlockModelRenderer.renderModel detected, state={}, model={}, renderer={}, thread={}, pos={}",
+                stateName, modelClass, className(renderer), Thread.currentThread().getName(), pos);
+        }
+    }
+
+    public static void end() {
+        RenderContext context = ACTIVE_CONTEXT.get();
+        ACTIVE_CONTEXT.set(context == null ? null : context.parent);
+    }
+
+    public static void addVertexData(BufferBuilder buffer, int[] vertexData) {
+        RenderContext context = ACTIVE_CONTEXT.get();
+        if (context == null || !context.active) {
+            addVertexDataRaw(buffer, vertexData);
+            return;
+        }
+
+        BakedQuad quad = context.findQuad(vertexData);
+        int materialId = routeMaterialId(context.state, quad);
+        if (materialId < 0) {
+            addVertexDataRaw(buffer, vertexData);
+            return;
+        }
+
+        logRoute(materialId, context, quad);
+        GTShaderBridgeScope.addVertexDataWithEntityData(buffer, vertexData, materialId);
+    }
+
+    public static void beginAddVertexData(BufferBuilder buffer, int[] vertexData) {
+        AutoCloseable scope = null;
+        try {
+            RenderContext context = ACTIVE_CONTEXT.get();
+            if (context != null && context.active) {
+                BakedQuad quad = context.findQuad(vertexData);
+                int materialId = routeMaterialId(context.state, quad);
+                if (materialId >= 0) {
+                    logRoute(materialId, context, quad);
+                    scope = GTShaderBridgeScope.beginTemporaryEntityData(buffer, materialId);
+                }
+            }
+        } catch (Throwable e) {
+            GTShaderBridge.LOGGER.warn("[GTShaderBridge] AE2/OpenComputers BakedQuad route failed; skipped this quad", e);
+        }
+
+        Deque<AutoCloseable> scopes = ADD_VERTEX_SCOPES.get();
+        if (scopes == null) {
+            scopes = new ArrayDeque<AutoCloseable>();
+            ADD_VERTEX_SCOPES.set(scopes);
+        }
+        scopes.push(scope == null ? NoopCloseable.INSTANCE : scope);
+    }
+
+    public static void endAddVertexData() {
+        Deque<AutoCloseable> scopes = ADD_VERTEX_SCOPES.get();
+        if (scopes == null || scopes.isEmpty()) {
+            return;
+        }
+
+        AutoCloseable scope = scopes.pop();
+        if (scopes.isEmpty()) {
+            ADD_VERTEX_SCOPES.remove();
+        }
+
+        try {
+            scope.close();
+        } catch (Throwable e) {
+            GTShaderBridge.LOGGER.warn("[GTShaderBridge] Failed to restore temporary AE2/OpenComputers entity data", e);
+        }
+    }
+
+    private static boolean isTargetState(IBlockState state) {
+        if (state == null) {
+            return false;
+        }
+
+        String namespace = registryNamespace(state);
+        return "appliedenergistics2".equals(namespace) || "opencomputers".equals(namespace);
+    }
+
+    private static int routeMaterialId(IBlockState state, BakedQuad quad) {
+        if (quad == null) {
+            return -1;
+        }
+
+        String iconName = iconName(quad);
+
+        if (iconName.startsWith("appliedenergistics2:")) {
+            return routeAe2(iconName);
+        }
+
+        if (iconName.startsWith("opencomputers:")) {
+            return GTShaderBridgeConfig.ocBodyMaterialId;
+        }
+
+        if ("opencomputers".equals(registryNamespace(state))) {
+            return GTShaderBridgeConfig.ocBodyMaterialId;
+        }
+
+        return -1;
+    }
+
+    private static int routeAe2(String iconName) {
+        if (iconName.endsWith("terminal_dark")) {
+            return GTShaderBridgeConfig.aeTerminalDebugMaterialId;
+        }
+        if (iconName.endsWith("terminal_medium")) {
+            return GTShaderBridgeConfig.aeTerminalDebugMaterialId;
+        }
+        if (iconName.endsWith("terminal_bright")) {
+            return GTShaderBridgeConfig.aeTerminalDebugMaterialId;
+        }
+        if (iconName.endsWith("fluid_terminal/lights_dark")) {
+            return GTShaderBridgeConfig.aeTerminalDebugMaterialId;
+        }
+        if (iconName.endsWith("fluid_terminal/lights_medium")) {
+            return GTShaderBridgeConfig.aeTerminalDebugMaterialId;
+        }
+        if (iconName.endsWith("fluid_terminal/lights_bright")) {
+            return GTShaderBridgeConfig.aeTerminalDebugMaterialId;
+        }
+        if (iconName.contains("drive_cell_states")) {
+            return GTShaderBridgeConfig.aeDriveLedMaterialId;
+        }
+
+        boolean dense = iconName.contains("parts/cable/dense_smart/channels_");
+        boolean smart = iconName.contains("parts/cable/smart/channels_");
+        if (dense || smart) {
+            int channelsIndex = parseChannelTextureIndex(iconName);
+            if (channelsIndex == 0 || channelsIndex == 10) {
+                return GTShaderBridgeConfig.aeCableIdleMaterialId;
+            }
+            if (channelsIndex >= 1 && channelsIndex <= 4) {
+                return GTShaderBridgeConfig.aeCableLowChannelMaterialId;
+            }
+            if (channelsIndex >= 11 && channelsIndex <= 14) {
+                return GTShaderBridgeConfig.aeCableHighChannelMaterialId;
+            }
+        }
+
+        return -1;
+    }
+
+    private static int parseChannelTextureIndex(String iconName) {
+        int index = iconName.lastIndexOf("channels_");
+        if (index < 0) {
+            return -1;
+        }
+
+        int start = index + "channels_".length();
+        int end = Math.min(start + 2, iconName.length());
+        try {
+            return Integer.parseInt(iconName.substring(start, end));
+        } catch (NumberFormatException ignored) {
+            return -1;
+        }
+    }
+
+    private static void logRoute(int materialId, RenderContext context, BakedQuad quad) {
+        if (!GTShaderBridgeConfig.logAeOcBakedQuadRoutes) {
+            return;
+        }
+
+        String iconName = iconName(quad);
+        String stateName = registryName(context.state);
+        String rendererName = className(context.renderer);
+        String key = stateName + "|" + rendererName + "|" + materialId + "|" + iconName;
+        if (LOGGED_ROUTES.add(key)) {
+            GTShaderBridge.LOGGER.info("GTShaderBridge: semantic route detected, source=BakedQuad, state={}, renderer={}, sprite={}, materialId={}",
+                stateName, rendererName, iconName, materialId);
+        }
+    }
+
+    private static String registryName(IBlockState state) {
+        Object block = invoke(state, new String[] {"func_177230_c", "getBlock"});
+        Object registryName = invoke(block, new String[] {"getRegistryName"});
+        return registryName == null ? "" : String.valueOf(registryName);
+    }
+
+    private static String registryNamespace(IBlockState state) {
+        Object block = invoke(state, new String[] {"func_177230_c", "getBlock"});
+        Object registryName = invoke(block, new String[] {"getRegistryName"});
+        Object namespace = invoke(registryName, new String[] {"func_110624_b", "getNamespace"});
+        return namespace instanceof String ? (String) namespace : "";
+    }
+
+    private static String className(Object value) {
+        return value == null ? "null" : value.getClass().getName();
+    }
+
+    private static String iconName(BakedQuad quad) {
+        Object sprite = invoke(quad, new String[] {"func_187508_a", "getSprite"});
+        Object iconName = invoke(sprite, new String[] {"func_94215_i", "getIconName"});
+        return iconName instanceof String ? (String) iconName : "";
+    }
+
+    private static int[] vertexData(BakedQuad quad) {
+        Object value = invoke(quad, new String[] {"func_178209_a", "getVertexData"});
+        return value instanceof int[] ? (int[]) value : null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<BakedQuad> modelQuads(IBakedModel model, IBlockState state, EnumFacing face, long rand) {
+        Object value = invoke(model, new String[] {"func_188616_a", "getQuads"},
+            new Class<?>[] {IBlockState.class, EnumFacing.class, Long.TYPE},
+            new Object[] {state, face, Long.valueOf(rand)});
+        return value instanceof List<?> ? (List<BakedQuad>) value : Collections.<BakedQuad>emptyList();
+    }
+
+    private static void addVertexDataRaw(BufferBuilder buffer, int[] vertexData) {
+        invoke(buffer, new String[] {"func_178981_a", "addVertexData"},
+            new Class<?>[] {int[].class},
+            new Object[] {vertexData});
+    }
+
+    private static Object invoke(Object target, String[] names) {
+        return invoke(target, names, new Class<?>[0], new Object[0]);
+    }
+
+    private static Object invoke(Object target, String[] names, Class<?>[] parameterTypes, Object[] arguments) {
+        if (target == null) {
+            return null;
+        }
+
+        Class<?> type = target.getClass();
+        while (type != null) {
+            for (int i = 0; i < names.length; i++) {
+                try {
+                    Method method = type.getMethod(names[i], parameterTypes);
+                    method.setAccessible(true);
+                    return method.invoke(target, arguments);
+                } catch (NoSuchMethodException ignored) {
+                    // Try declared/private methods or the next runtime/deobfuscated name.
+                } catch (Throwable ignored) {
+                    return null;
+                }
+
+                try {
+                    Method method = type.getDeclaredMethod(names[i], parameterTypes);
+                    method.setAccessible(true);
+                    return method.invoke(target, arguments);
+                } catch (NoSuchMethodException ignored) {
+                    // Try the next runtime/deobfuscated name.
+                } catch (Throwable ignored) {
+                    return null;
+                }
+            }
+            type = type.getSuperclass();
+        }
+        return null;
+    }
+
+    private static final class RenderContext {
+        private final RenderContext parent;
+        private final boolean active;
+        private final Object renderer;
+        private final IBakedModel model;
+        private final IBlockState state;
+        private final long rand;
+        private IdentityHashMap<int[], BakedQuad> quadsByVertexData;
+        private List<BakedQuad> quads;
+
+        private RenderContext(RenderContext parent) {
+            this.parent = parent;
+            this.active = false;
+            this.renderer = null;
+            this.model = null;
+            this.state = null;
+            this.rand = 0L;
+        }
+
+        private RenderContext(RenderContext parent, Object renderer, IBlockAccess world, IBakedModel model, IBlockState state, BlockPos pos, long rand) {
+            this.parent = parent;
+            this.active = world != null && pos != null && model != null && state != null;
+            this.renderer = renderer;
+            this.model = model;
+            this.state = state;
+            this.rand = rand;
+        }
+
+        private BakedQuad findQuad(int[] vertexData) {
+            ensureQuadsLoaded();
+            BakedQuad identityMatch = quadsByVertexData.get(vertexData);
+            if (identityMatch != null) {
+                return identityMatch;
+            }
+
+            for (int i = 0; i < quads.size(); i++) {
+                BakedQuad quad = quads.get(i);
+                int[] candidate = vertexData(quad);
+                if (candidate != vertexData && sameVertexData(candidate, vertexData)) {
+                    return quad;
+                }
+            }
+            return null;
+        }
+
+        private void ensureQuadsLoaded() {
+            if (quads != null) {
+                return;
+            }
+
+            quads = new ArrayList<BakedQuad>();
+            quadsByVertexData = new IdentityHashMap<int[], BakedQuad>();
+            try {
+                EnumFacing[] faces = EnumFacing.values();
+                for (int i = 0; i < faces.length; i++) {
+                    addQuads(modelQuads(model, state, faces[i], rand));
+                }
+                addQuads(modelQuads(model, state, null, rand));
+            } catch (Throwable e) {
+                GTShaderBridge.LOGGER.warn("[GTShaderBridge] Failed to inspect AE2/OpenComputers baked quads; routing skipped for this model", e);
+                quads.clear();
+                quadsByVertexData.clear();
+            }
+        }
+
+        private void addQuads(List<BakedQuad> source) {
+            if (source == null || source.isEmpty()) {
+                return;
+            }
+
+            for (int i = 0; i < source.size(); i++) {
+                BakedQuad quad = source.get(i);
+                if (quad == null) {
+                    continue;
+                }
+                quads.add(quad);
+                int[] vertexData = vertexData(quad);
+                if (vertexData != null) {
+                    quadsByVertexData.put(vertexData, quad);
+                }
+            }
+        }
+
+        private static boolean sameVertexData(int[] left, int[] right) {
+            if (left == right) {
+                return true;
+            }
+            if (left == null || right == null || left.length != right.length) {
+                return false;
+            }
+            for (int i = 0; i < left.length; i++) {
+                if (left[i] != right[i]) {
+                    return false;
+                }
+            }
+            return true;
+        }
+    }
+
+    private enum NoopCloseable implements AutoCloseable {
+        INSTANCE;
+
+        @Override
+        public void close() {
+        }
+    }
+}

@@ -149,7 +149,7 @@ function Invoke-Build {
     Copy-DirectoryContents -Source $Resources -Destination $staging
     Copy-DirectoryContents -Source $classes -Destination $staging
 
-    $jarPath = Join-Path $LibOut "gtceu-optifine-shader-bridge-multiroute-debug-1.5.0.jar"
+    $jarPath = Join-Path $LibOut "gtceu-optifine-shader-bridge-semantic-debug.jar"
     New-ZipFromDirectory -Source $staging -ZipPath $jarPath
     Write-Host "Built $jarPath"
 }
