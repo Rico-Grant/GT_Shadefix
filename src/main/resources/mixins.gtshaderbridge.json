@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.alber.gtshaderbridge.mixin",
+  "compatibilityLevel": "JAVA_8",
+  "client": [
+    "MixinCCRenderState",
+    "MixinMetaTileEntityRenderer",
+    "MixinPipeRenderer"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

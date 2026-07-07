@@ -1,0 +1,20 @@
+# build outputs
+build/
+out/
+*.class
+*.jar
+
+# local IDE/project metadata
+.idea/
+*.iml
+.vscode/
+
+# local runtime/logs
+run/
+logs/
+crash-reports/
+*.log
+
+# OS noise
+Thumbs.db
+desktop.ini

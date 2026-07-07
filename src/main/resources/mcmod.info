@@ -1,0 +1,16 @@
+[
+  {
+    "modid": "gtshaderbridge",
+    "name": "GregTech CEu OptiFine Shader Bridge",
+    "description": "Client-only multi-route bridge that writes debug OptiFine shader entity ids for selected GregTech CEu CCL body renderers through the current BufferBuilder's sVertexBuilder.",
+    "version": "1.5.0-multiroute-debug",
+    "mcversion": "1.12.2",
+    "url": "",
+    "updateUrl": "",
+    "authorList": ["Alber", "Codex"],
+    "credits": "Built for the Supersymmetry HMCL GregTech CEu shader pipeline.",
+    "logoFile": "",
+    "screenshots": [],
+    "dependencies": ["gregtech"]
+  }
+]
