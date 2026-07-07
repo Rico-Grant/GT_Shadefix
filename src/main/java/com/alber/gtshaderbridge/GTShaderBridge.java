@@ -4,6 +4,7 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import com.alber.gtshaderbridge.client.SemanticIds;
 
 @Mod(
     modid = GTShaderBridge.MODID,
@@ -22,13 +23,11 @@ public final class GTShaderBridge {
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
         GTShaderBridgeConfig.load(event.getModConfigurationDirectory());
-        LOGGER.info("[GTShaderBridge] Semantic debug bridge loaded; enabled={}, writeEntityData={}, machine={}, pipe={}, cable={}, aeOcBakedQuads={}, ocTesrProbe={}, aeCableIdle={}, aeCableLow={}, aeCableHigh={}, ocBody={}, ocLedTesr={}",
+        LOGGER.info("[GTShaderBridge] Semantic debug bridge loaded; enabled={}, writeEntityData={}, machine={}, pipe={}, cable={}, aeOcBakedQuads={}, ocTesrProbe={}, caseTesrShaderFormatPoc={}",
             GTShaderBridgeConfig.enabled, GTShaderBridgeConfig.writeEntityData,
             GTShaderBridgeConfig.machineBodyMaterialId, GTShaderBridgeConfig.pipeMaterialId,
             GTShaderBridgeConfig.cableMaterialId, GTShaderBridgeConfig.routeAeOcBakedQuads,
-            GTShaderBridgeConfig.probeOcTesrTransport,
-            GTShaderBridgeConfig.aeCableIdleMaterialId, GTShaderBridgeConfig.aeCableLowChannelMaterialId,
-            GTShaderBridgeConfig.aeCableHighChannelMaterialId, GTShaderBridgeConfig.ocBodyMaterialId,
-            GTShaderBridgeConfig.ocLedTesrMaterialId);
+            GTShaderBridgeConfig.probeOcTesrTransport, GTShaderBridgeConfig.caseTesrShaderFormatPoc);
+        LOGGER.info("[GTShaderBridge] Java semantic ID table: {}", SemanticIds.startupTable());
     }
 }

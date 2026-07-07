@@ -13,14 +13,8 @@ public final class GTShaderBridgeConfig {
     public static boolean routeAeOcBakedQuads = true;
     public static boolean logAeOcBakedQuadRoutes = true;
     public static boolean probeOcTesrTransport = true;
+    public static boolean caseTesrShaderFormatPoc = true;
     public static boolean logSemanticTransport = true;
-    public static int aeCableIdleMaterialId = 12100;
-    public static int aeCableLowChannelMaterialId = 12101;
-    public static int aeCableHighChannelMaterialId = 12102;
-    public static int aeDriveLedMaterialId = 12103;
-    public static int aeTerminalDebugMaterialId = 12104;
-    public static int ocBodyMaterialId = 12110;
-    public static int ocLedTesrMaterialId = 12112;
     public static boolean logVertexWriter = true;
     public static boolean logVertexFormat = true;
     public static boolean writeEntityData = true;
@@ -51,22 +45,10 @@ public final class GTShaderBridgeConfig {
                 "Log each AE2/OpenComputers BakedQuad sprite route once.");
             probeOcTesrTransport = config.getBoolean("probeOcTesrTransport", Configuration.CATEGORY_CLIENT, true,
                 "Probe OpenComputers TESR overlay transport before enabling any formal OC LED emission.");
+            caseTesrShaderFormatPoc = config.getBoolean("caseTesrShaderFormatPoc", Configuration.CATEGORY_CLIENT, true,
+                "Experimental: only CaseRenderer.renderFrontOverlay is re-submitted with a shader-compatible OptiFine vertex format for OC_LED_TESR transport proof.");
             logSemanticTransport = config.getBoolean("logSemanticTransport", Configuration.CATEGORY_CLIENT, true,
                 "Log each unique semantic-ID route and TESR transport format once.");
-            aeCableIdleMaterialId = config.getInt("aeCableIdleMaterialId", Configuration.CATEGORY_CLIENT, 12100, 0, 65535,
-                "Semantic shader material id for inactive AE2 smart/dense cable channel quads.");
-            aeCableLowChannelMaterialId = config.getInt("aeCableLowChannelMaterialId", Configuration.CATEGORY_CLIENT, 12101, 0, 65535,
-                "Semantic shader material id for AE2 channels_01..04 quads.");
-            aeCableHighChannelMaterialId = config.getInt("aeCableHighChannelMaterialId", Configuration.CATEGORY_CLIENT, 12102, 0, 65535,
-                "Semantic shader material id for AE2 channels_11..14 quads.");
-            aeDriveLedMaterialId = config.getInt("aeDriveLedMaterialId", Configuration.CATEGORY_CLIENT, 12103, 0, 65535,
-                "Semantic shader material id for confirmed AE2 ME drive cell-status LED quads.");
-            aeTerminalDebugMaterialId = config.getInt("aeTerminalDebugMaterialId", Configuration.CATEGORY_CLIENT, 12104, 0, 65535,
-                "Debug-only semantic material id for audited AE2 terminal light quads; not used for formal emission yet.");
-            ocBodyMaterialId = config.getInt("ocBodyMaterialId", Configuration.CATEGORY_CLIENT, 12110, 0, 65535,
-                "Semantic shader material id for non-emissive OpenComputers baked model housing.");
-            ocLedTesrMaterialId = config.getInt("ocLedTesrMaterialId", Configuration.CATEGORY_CLIENT, 12112, 0, 65535,
-                "Semantic shader material id force-written by the OpenComputers TESR overlay transport probe.");
             logVertexWriter = config.getBoolean("logVertexWriter", Configuration.CATEGORY_CLIENT, true,
                 "Log once per chunk when a scoped GregTech CCL renderer reaches the CCL vertex writer.");
             logVertexFormat = config.getBoolean("logVertexFormat", Configuration.CATEGORY_CLIENT, true,

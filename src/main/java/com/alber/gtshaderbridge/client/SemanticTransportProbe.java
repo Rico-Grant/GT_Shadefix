@@ -26,7 +26,7 @@ public final class SemanticTransportProbe {
             return NoopCloseable.INSTANCE;
         }
 
-        RouteScope scope = new RouteScope(ACTIVE_ROUTE.get(), renderer, method, overlay, GTShaderBridgeConfig.ocLedTesrMaterialId);
+        RouteScope scope = new RouteScope(ACTIVE_ROUTE.get(), renderer, method, overlay, SemanticIds.OC_LED_TESR);
         ACTIVE_ROUTE.set(scope);
         logRoute(scope);
         return scope;
@@ -42,6 +42,7 @@ public final class SemanticTransportProbe {
         TransportSummary summary = TransportSummary.capture(buffer);
         EntityDataTop entityDataTop = null;
         String writeResult = "not_attempted";
+        String packedEntityWords = "unwritten";
 
         if (!GTShaderBridgeConfig.writeEntityData) {
             writeResult = "disabled_by_config";
@@ -54,6 +55,7 @@ public final class SemanticTransportProbe {
                 entityDataTop = EntityDataTop.capture(buffer);
                 entityDataTop.set(packEntity(scope.materialId));
                 ACTIVE_WRITE.set(entityDataTop);
+                packedEntityWords = entityDataTop.packedWords();
                 writeResult = "success";
             } catch (Throwable e) {
                 writeResult = "write_failed";
@@ -61,7 +63,7 @@ public final class SemanticTransportProbe {
             }
         }
 
-        logTransport(scope, summary, writeResult);
+        logTransport(scope, summary, writeResult, packedEntityWords);
     }
 
     public static void endBufferEndVertex() {
@@ -86,7 +88,7 @@ public final class SemanticTransportProbe {
         }
     }
 
-    private static void logTransport(RouteScope scope, TransportSummary summary, String writeResult) {
+    private static void logTransport(RouteScope scope, TransportSummary summary, String writeResult, String packedEntityWords) {
         if (!GTShaderBridgeConfig.logSemanticTransport) {
             return;
         }
@@ -94,8 +96,9 @@ public final class SemanticTransportProbe {
         String key = scope.renderer + "|" + scope.method + "|" + scope.overlayName + "|" + scope.materialId + "|"
             + summary.formatSignature + "|" + writeResult;
         if (LOGGED_TRANSPORTS.add(key)) {
-            GTShaderBridge.LOGGER.info("GTShaderBridge: semantic transport detected, source=OC_TESR, renderer={}, method={}, overlay={}, materialId={}, verticesSeen={}, writeResult={}, {}",
-                scope.renderer, scope.method, scope.overlayName, scope.materialId, scope.vertices, writeResult, summary.formatSignature);
+            GTShaderBridge.LOGGER.info("GTShaderBridge: semantic transport detected, source=OC_TESR, renderer={}, method={}, sprite={}, modelClass=TESR, chosenId={}({}), selectionReason=oc_tesr_precise_renderer_route, legacyFallback=false, verticesSeen={}, writeResult={}, packedEntityWords={}, {}",
+                scope.renderer, scope.method, scope.overlayName, scope.materialId, SemanticIds.nameOf(scope.materialId),
+                scope.vertices, writeResult, packedEntityWords, summary.formatSignature);
         }
     }
 
@@ -318,6 +321,14 @@ public final class SemanticTransportProbe {
 
         void set(long packedEntity) {
             entityData[index] = packedEntity;
+        }
+
+        String packedWords() {
+            long packed = entityData[index];
+            return "index=" + index
+                + ",low16=" + (packed & 0xFFFFL)
+                + ",high16=" + ((packed >>> 16) & 0xFFFFL)
+                + ",raw=" + packed;
         }
 
         void restoreQuietly() {

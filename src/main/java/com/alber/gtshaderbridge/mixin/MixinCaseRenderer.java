@@ -1,5 +1,7 @@
 package com.alber.gtshaderbridge.mixin;
 
+import com.alber.gtshaderbridge.GTShaderBridgeConfig;
+import com.alber.gtshaderbridge.client.OcTesrShaderFormatPoc;
 import com.alber.gtshaderbridge.client.SemanticTransportProbe;
 import net.minecraft.util.ResourceLocation;
 import org.spongepowered.asm.mixin.Mixin;
@@ -14,10 +16,15 @@ public abstract class MixinCaseRenderer {
     @Inject(
         method = "renderFrontOverlay(Lnet/minecraft/util/ResourceLocation;)V",
         at = @At("HEAD"),
-        require = 1
+        require = 1,
+        cancellable = true
     )
     private void gtshaderbridge$beginCaseOverlay(ResourceLocation overlay, CallbackInfo ci) {
         GTSHADERBRIDGE_ROUTE.set(SemanticTransportProbe.beginOcTesrRoute("CaseRenderer", "renderFrontOverlay", overlay));
+        if (GTShaderBridgeConfig.caseTesrShaderFormatPoc && OcTesrShaderFormatPoc.renderCaseFrontOverlay(overlay)) {
+            closeRoute();
+            ci.cancel();
+        }
     }
 
     @Inject(

@@ -66,14 +66,14 @@ public final class BakedQuadShaderRouter {
         }
 
         BakedQuad quad = context.findQuad(vertexData);
-        int materialId = routeMaterialId(context.state, quad);
-        if (materialId < 0) {
+        RouteDecision decision = routeMaterialId(context.state, quad);
+        if (decision == null) {
             addVertexDataRaw(buffer, vertexData);
             return;
         }
 
-        logRoute(materialId, context, quad);
-        GTShaderBridgeScope.addVertexDataWithEntityData(buffer, vertexData, materialId);
+        logRoute(decision, context, quad);
+        GTShaderBridgeScope.addVertexDataWithEntityData(buffer, vertexData, decision.materialId);
     }
 
     public static void beginAddVertexData(BufferBuilder buffer, int[] vertexData) {
@@ -82,10 +82,10 @@ public final class BakedQuadShaderRouter {
             RenderContext context = ACTIVE_CONTEXT.get();
             if (context != null && context.active) {
                 BakedQuad quad = context.findQuad(vertexData);
-                int materialId = routeMaterialId(context.state, quad);
-                if (materialId >= 0) {
-                    logRoute(materialId, context, quad);
-                    scope = GTShaderBridgeScope.beginTemporaryEntityData(buffer, materialId);
+                RouteDecision decision = routeMaterialId(context.state, quad);
+                if (decision != null) {
+                    logRoute(decision, context, quad);
+                    scope = GTShaderBridgeScope.beginTemporaryEntityData(buffer, decision.materialId);
                 }
             }
         } catch (Throwable e) {
@@ -127,9 +127,9 @@ public final class BakedQuadShaderRouter {
         return "appliedenergistics2".equals(namespace) || "opencomputers".equals(namespace);
     }
 
-    private static int routeMaterialId(IBlockState state, BakedQuad quad) {
+    private static RouteDecision routeMaterialId(IBlockState state, BakedQuad quad) {
         if (quad == null) {
-            return -1;
+            return null;
         }
 
         String iconName = iconName(quad);
@@ -139,37 +139,40 @@ public final class BakedQuadShaderRouter {
         }
 
         if (iconName.startsWith("opencomputers:")) {
-            return GTShaderBridgeConfig.ocBodyMaterialId;
+            return new RouteDecision(SemanticIds.OC_BODY, "oc_baked_body", false);
         }
 
         if ("opencomputers".equals(registryNamespace(state))) {
-            return GTShaderBridgeConfig.ocBodyMaterialId;
+            return new RouteDecision(SemanticIds.OC_BODY, "oc_baked_body_namespace_fallback", false);
         }
 
-        return -1;
+        return null;
     }
 
-    private static int routeAe2(String iconName) {
+    private static RouteDecision routeAe2(String iconName) {
         if (iconName.endsWith("terminal_dark")) {
-            return GTShaderBridgeConfig.aeTerminalDebugMaterialId;
+            return new RouteDecision(SemanticIds.AE_TERMINAL_TRACE, "ae_terminal_trace_terminal_dark", false);
         }
         if (iconName.endsWith("terminal_medium")) {
-            return GTShaderBridgeConfig.aeTerminalDebugMaterialId;
+            return new RouteDecision(SemanticIds.AE_TERMINAL_TRACE, "ae_terminal_trace_terminal_medium", false);
         }
         if (iconName.endsWith("terminal_bright")) {
-            return GTShaderBridgeConfig.aeTerminalDebugMaterialId;
+            return new RouteDecision(SemanticIds.AE_TERMINAL_TRACE, "ae_terminal_trace_terminal_bright", false);
         }
         if (iconName.endsWith("fluid_terminal/lights_dark")) {
-            return GTShaderBridgeConfig.aeTerminalDebugMaterialId;
+            return new RouteDecision(SemanticIds.AE_TERMINAL_TRACE, "ae_terminal_trace_fluid_lights_dark", false);
         }
         if (iconName.endsWith("fluid_terminal/lights_medium")) {
-            return GTShaderBridgeConfig.aeTerminalDebugMaterialId;
+            return new RouteDecision(SemanticIds.AE_TERMINAL_TRACE, "ae_terminal_trace_fluid_lights_medium", false);
         }
         if (iconName.endsWith("fluid_terminal/lights_bright")) {
-            return GTShaderBridgeConfig.aeTerminalDebugMaterialId;
+            return new RouteDecision(SemanticIds.AE_TERMINAL_TRACE, "ae_terminal_trace_fluid_lights_bright", false);
         }
-        if (iconName.contains("drive_cell_states")) {
-            return GTShaderBridgeConfig.aeDriveLedMaterialId;
+        if (iconName.endsWith("drive_cell_states_emissive") || iconName.contains("drive_cell_states_emissive")) {
+            return new RouteDecision(SemanticIds.AE_DRIVE_LED, "ae_drive_cell_states_emissive", false);
+        }
+        if (iconName.endsWith("drive_cell_states") || iconName.contains("drive_cell_states")) {
+            return new RouteDecision(SemanticIds.AE_BODY, "ae_drive_cell_states_base_body", false);
         }
 
         boolean dense = iconName.contains("parts/cable/dense_smart/channels_");
@@ -177,17 +180,17 @@ public final class BakedQuadShaderRouter {
         if (dense || smart) {
             int channelsIndex = parseChannelTextureIndex(iconName);
             if (channelsIndex == 0 || channelsIndex == 10) {
-                return GTShaderBridgeConfig.aeCableIdleMaterialId;
+                return new RouteDecision(SemanticIds.AE_CABLE_IDLE, "ae_cable_channels_00_or_10_idle", false);
             }
             if (channelsIndex >= 1 && channelsIndex <= 4) {
-                return GTShaderBridgeConfig.aeCableLowChannelMaterialId;
+                return new RouteDecision(SemanticIds.AE_CABLE_LOW_CHANNEL, "ae_cable_channels_01_04_low", false);
             }
             if (channelsIndex >= 11 && channelsIndex <= 14) {
-                return GTShaderBridgeConfig.aeCableHighChannelMaterialId;
+                return new RouteDecision(SemanticIds.AE_CABLE_HIGH_CHANNEL, "ae_cable_channels_11_14_high", false);
             }
         }
 
-        return -1;
+        return null;
     }
 
     private static int parseChannelTextureIndex(String iconName) {
@@ -205,7 +208,7 @@ public final class BakedQuadShaderRouter {
         }
     }
 
-    private static void logRoute(int materialId, RenderContext context, BakedQuad quad) {
+    private static void logRoute(RouteDecision decision, RenderContext context, BakedQuad quad) {
         if (!GTShaderBridgeConfig.logAeOcBakedQuadRoutes) {
             return;
         }
@@ -213,10 +216,12 @@ public final class BakedQuadShaderRouter {
         String iconName = iconName(quad);
         String stateName = registryName(context.state);
         String rendererName = className(context.renderer);
-        String key = stateName + "|" + rendererName + "|" + materialId + "|" + iconName;
+        String modelName = className(context.model);
+        String key = stateName + "|" + rendererName + "|" + modelName + "|" + decision.materialId + "|" + iconName + "|" + decision.reason;
         if (LOGGED_ROUTES.add(key)) {
-            GTShaderBridge.LOGGER.info("GTShaderBridge: semantic route detected, source=BakedQuad, state={}, renderer={}, sprite={}, materialId={}",
-                stateName, rendererName, iconName, materialId);
+            GTShaderBridge.LOGGER.info("GTShaderBridge: semantic route detected, source=BakedQuad, state={}, renderer={}, modelClass={}, sprite={}, chosenId={}({}), selectionReason={}, legacyFallback={}",
+                stateName, rendererName, modelName, iconName, decision.materialId, SemanticIds.nameOf(decision.materialId),
+                decision.reason, decision.legacyFallback);
         }
     }
 
@@ -395,6 +400,18 @@ public final class BakedQuadShaderRouter {
                 }
             }
             return true;
+        }
+    }
+
+    private static final class RouteDecision {
+        private final int materialId;
+        private final String reason;
+        private final boolean legacyFallback;
+
+        private RouteDecision(int materialId, String reason, boolean legacyFallback) {
+            this.materialId = materialId;
+            this.reason = reason;
+            this.legacyFallback = legacyFallback;
         }
     }
 

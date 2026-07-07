@@ -94,12 +94,18 @@ GTShaderBridge: writing OptiFine entity data on CCL MTE vertices, materialId=119
 
 AE2/OpenComputers semantic debug routes use:
 
-- `12100`: AE cable idle (`channels_00`, `channels_10`).
-- `12101`: AE cable low channel (`channels_01..04`).
-- `12102`: AE cable high channel (`channels_11..14`).
-- `12103`: AE drive LED.
-- `12104`: AE terminal debug-only route.
+- `12100`: AE body/backdrop/base quads.
+- `12101`: AE UVL light.
+- `12102`: AE controller light.
+- `12103`: AE cable idle (`channels_00`, `channels_10`).
+- `12104`: AE cable low channel (`channels_01..04`).
+- `12105`: AE cable high channel (`channels_11..14`).
+- `12106`: AE drive LED.
+- `12107`: AE crafting light.
+- `12108`: AE monitor light.
+- `12109`: AE terminal trace.
 - `12110`: OpenComputers baked housing/body.
+- `12111`: OpenComputers baked LED.
 - `12112`: OpenComputers TESR overlay transport probe.
 
 For 5-8 channel smart cables, AE2 emits both low and high channel quads; the bridge routes those quads independently.

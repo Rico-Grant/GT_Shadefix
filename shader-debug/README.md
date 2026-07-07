@@ -12,12 +12,20 @@ Output:
 
 Debug IDs:
 
-- `12100`: AE cable idle, dark gray.
-- `12101`: AE cable low-channel quads, cyan.
-- `12102`: AE cable high-channel quads, yellow.
-- `12103`: AE drive LED quads, green.
-- `12104`: AE terminal debug-only quads, purple.
+- `12100`: AE body, dark slate.
+- `12101`: AE UVL light, pale cyan.
+- `12102`: AE controller light, orange.
+- `12103`: AE cable idle, dark gray.
+- `12104`: AE cable low-channel quads, cyan.
+- `12105`: AE cable high-channel quads, yellow.
+- `12106`: AE drive LED quads, green.
+- `12107`: AE crafting light, red.
+- `12108`: AE monitor light, blue.
+- `12109`: AE terminal trace, purple.
 - `12110`: OpenComputers baked housing/body, deep gray.
+- `12111`: OpenComputers baked LED, pink.
 - `12112`: OpenComputers TESR overlay transport probe, pure magenta.
 
 These branches intentionally set `emission = 0.0`. The first debug pass is about proving semantic routing and TESR transport, not final bloom tuning.
+
+The generated shaderpack also includes `AEOC_SEMANTIC_DEBUG_IDS.txt` at zip root.
