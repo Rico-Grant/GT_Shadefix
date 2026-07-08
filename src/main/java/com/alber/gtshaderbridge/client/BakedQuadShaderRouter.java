@@ -141,7 +141,10 @@ public final class BakedQuadShaderRouter {
         }
 
         if (iconName.startsWith("opencomputers:")) {
-            return new RouteDecision(SemanticIds.OC_LED_BAKED, "oc_baked_high_saturation_pixel_mask", false);
+            if (shouldUseOcGenericEmission(iconName)) {
+                return new RouteDecision(SemanticIds.OC_LED_BAKED, "oc_baked_high_saturation_pixel_mask", false);
+            }
+            return null;
         }
 
         return null;
@@ -214,6 +217,20 @@ public final class BakedQuadShaderRouter {
             && !iconName.contains("monitor_sides_status")
             && !iconName.contains("drive_cell")
             && !iconName.contains("controller");
+    }
+
+    private static boolean shouldUseOcGenericEmission(String iconName) {
+        return iconName.contains("blocks/printer_")
+            || iconName.contains("blocks/charger_")
+            || iconName.contains("blocks/redstone_")
+            || iconName.contains("blocks/motionsensor_")
+            || iconName.contains("blocks/overlay/charger_")
+            || iconName.contains("blocks/overlay/disassembler_")
+            || iconName.contains("blocks/overlay/geolyzer_")
+            || iconName.contains("blocks/overlay/powerdistributor_")
+            || iconName.contains("blocks/overlay/adapter_on")
+            || iconName.contains("blocks/overlay/switch_side_on")
+            || iconName.contains("blocks/overlay/transposer_on");
     }
 
     private static RouteDecision routeTerminalScreen(String iconName, BakedQuad quad, String reasonPrefix) {
