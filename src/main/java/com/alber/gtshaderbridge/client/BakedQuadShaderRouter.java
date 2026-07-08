@@ -15,6 +15,8 @@ import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.renderer.block.model.IBakedModel;
+import net.minecraft.client.renderer.vertex.VertexFormat;
+import net.minecraft.client.renderer.vertex.VertexFormatElement;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.IBlockAccess;
@@ -135,30 +137,43 @@ public final class BakedQuadShaderRouter {
         String iconName = iconName(quad);
 
         if (iconName.startsWith("appliedenergistics2:")) {
-            return routeAe2(iconName);
+            return routeAe2(iconName, quad);
+        }
+
+        if (iconName.startsWith("opencomputers:")) {
+            return new RouteDecision(SemanticIds.OC_LED_BAKED, "oc_baked_high_saturation_pixel_mask", false);
         }
 
         return null;
     }
 
-    private static RouteDecision routeAe2(String iconName) {
+    private static RouteDecision routeAe2(String iconName, BakedQuad quad) {
         if (iconName.endsWith("terminal_dark")) {
-            return new RouteDecision(SemanticIds.AE_TERMINAL_DARK_LEGACY, "ae_terminal_dark_state", false);
+            return routeTerminalScreen(iconName, quad, "ae_terminal_dark");
         }
         if (iconName.endsWith("terminal_medium")) {
-            return new RouteDecision(SemanticIds.AE_TERMINAL_MEDIUM_LEGACY, "ae_terminal_medium_state", false);
+            return routeTerminalScreen(iconName, quad, "ae_terminal_medium");
         }
         if (iconName.endsWith("terminal_bright")) {
-            return new RouteDecision(SemanticIds.AE_TERMINAL_BRIGHT_LEGACY, "ae_terminal_bright_state", false);
+            return routeTerminalScreen(iconName, quad, "ae_terminal_bright");
         }
         if (iconName.endsWith("fluid_terminal/lights_dark")) {
-            return new RouteDecision(SemanticIds.AE_TERMINAL_DARK_LEGACY, "ae_terminal_fluid_lights_dark_state", false);
+            return routeTerminalScreen(iconName, quad, "ae_terminal_fluid_lights_dark");
         }
         if (iconName.endsWith("fluid_terminal/lights_medium")) {
-            return new RouteDecision(SemanticIds.AE_TERMINAL_MEDIUM_LEGACY, "ae_terminal_fluid_lights_medium_state", false);
+            return routeTerminalScreen(iconName, quad, "ae_terminal_fluid_lights_medium");
         }
         if (iconName.endsWith("fluid_terminal/lights_bright")) {
-            return new RouteDecision(SemanticIds.AE_TERMINAL_BRIGHT_LEGACY, "ae_terminal_fluid_lights_bright_state", false);
+            return routeTerminalScreen(iconName, quad, "ae_terminal_fluid_lights_bright");
+        }
+        if (iconName.endsWith("monitor_sides_status_off")) {
+            return new RouteDecision(SemanticIds.AE_TERMINAL_DARK_LEGACY, "ae_terminal_status_off_no_lightmap", false);
+        }
+        if (iconName.endsWith("monitor_sides_status_on")) {
+            return new RouteDecision(SemanticIds.AE_TERMINAL_MEDIUM_LEGACY, "ae_terminal_status_powered_no_channel", false);
+        }
+        if (iconName.endsWith("monitor_sides_status_has_channel")) {
+            return new RouteDecision(SemanticIds.AE_TERMINAL_BRIGHT_LEGACY, "ae_terminal_status_powered_has_channel", false);
         }
         if (iconName.endsWith("controller_lights") || iconName.endsWith("controller_column_lights")
             || iconName.endsWith("controller_conflict") || iconName.endsWith("controller_column_conflict")) {
@@ -187,6 +202,12 @@ public final class BakedQuadShaderRouter {
         }
 
         return null;
+    }
+
+    private static RouteDecision routeTerminalScreen(String iconName, BakedQuad quad, String reasonPrefix) {
+        boolean poweredModel = hasLightmapElement(quad);
+        int id = poweredModel ? SemanticIds.AE_TERMINAL_BRIGHT_LEGACY : SemanticIds.AE_TERMINAL_DARK_LEGACY;
+        return new RouteDecision(id, reasonPrefix + (poweredModel ? "_uvl_powered" : "_off_no_uvl"), false);
     }
 
     private static int parseChannelTextureIndex(String iconName) {
@@ -249,6 +270,35 @@ public final class BakedQuadShaderRouter {
         return value instanceof int[] ? (int[]) value : null;
     }
 
+    private static boolean hasLightmapElement(BakedQuad quad) {
+        Object value = invoke(quad, new String[] {"func_178210_d", "getFormat"});
+        if (!(value instanceof VertexFormat)) {
+            return false;
+        }
+
+        VertexFormat format = (VertexFormat) value;
+        int elements = intMethod(format, new String[] {"func_177345_h", "getElementCount"}, -1);
+        if (elements <= 0) {
+            return false;
+        }
+
+        for (int i = 0; i < elements; i++) {
+            Object element = invoke(format, new String[] {"func_177348_c", "getElement"},
+                new Class<?>[] {Integer.TYPE}, new Object[] {Integer.valueOf(i)});
+            if (!(element instanceof VertexFormatElement)) {
+                continue;
+            }
+
+            Object usage = invoke(element, new String[] {"func_177375_c", "getUsage"});
+            int index = intMethod(element, new String[] {"func_177369_e", "getIndex"}, -1);
+            if ("UV".equals(String.valueOf(usage)) && index == 1) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     @SuppressWarnings("unchecked")
     private static List<BakedQuad> modelQuads(IBakedModel model, IBlockState state, EnumFacing face, long rand) {
         Object value = invoke(model, new String[] {"func_188616_a", "getQuads"},
@@ -265,6 +315,11 @@ public final class BakedQuadShaderRouter {
 
     private static Object invoke(Object target, String[] names) {
         return invoke(target, names, new Class<?>[0], new Object[0]);
+    }
+
+    private static int intMethod(Object target, String[] names, int defaultValue) {
+        Object value = invoke(target, names);
+        return value instanceof Number ? ((Number) value).intValue() : defaultValue;
     }
 
     private static Object invoke(Object target, String[] names, Class<?>[] parameterTypes, Object[] arguments) {
