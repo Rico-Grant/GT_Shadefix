@@ -85,8 +85,8 @@ public final class SemanticTransportProbe {
 
         String key = scope.renderer + "|" + scope.method + "|" + scope.overlayName + "|" + scope.materialId;
         if (LOGGED_ROUTES.add(key)) {
-            GTShaderBridge.LOGGER.info("GTShaderBridge: semantic route detected, source=OC_TESR, renderer={}, method={}, overlay={}, materialId={}",
-                scope.renderer, scope.method, scope.overlayName, scope.materialId);
+            GTShaderBridge.LOGGER.info("GTShaderBridge: semantic route detected, source=OC_TESR, renderer={}, method={}, sprite={}, modelClass=TESR, chosenId={}({}), selectionReason=oc_tesr_precise_renderer_route, legacyFallback=false",
+                scope.renderer, scope.method, scope.overlayName, scope.materialId, SemanticIds.nameOf(scope.materialId));
         }
     }
 

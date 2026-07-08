@@ -10,6 +10,10 @@ Output:
 
 `build/libs/ComplementaryReimagined_r5.8.1_SuSyIPBR_AEOC_SemanticDebug.zip`
 
+Second debug output:
+
+`build/libs/ComplementaryReimagined_r5.8.1_SuSyIPBR_AEOC_SemanticDebug_V2.zip`
+
 Debug IDs:
 
 - `12100`: AE body, dark slate.
@@ -29,3 +33,5 @@ Debug IDs:
 These branches intentionally set `emission = 0.0`. The first debug pass is about proving semantic routing and TESR transport, not final bloom tuning.
 
 The generated shaderpack also includes `AEOC_SEMANTIC_DEBUG_IDS.txt` at zip root.
+
+V2 keeps the same color table and extends the bridge-side OC TESR route coverage to `RaidRenderer.renderSlot`, covering `raid_front_activity` and `raid_front_error` without changing `opencomputers:raid` baked body quads.

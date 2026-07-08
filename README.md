@@ -106,7 +106,7 @@ AE2/OpenComputers semantic debug routes use:
 - `12109`: AE terminal trace.
 - `12110`: OpenComputers baked housing/body.
 - `12111`: OpenComputers baked LED.
-- `12112`: OpenComputers TESR overlay transport probe.
+- `12112`: OpenComputers TESR overlay transport probe for Case, Rack, Microcontroller, and Raid overlay draws.
 
 For 5-8 channel smart cables, AE2 emits both low and high channel quads; the bridge routes those quads independently.
 
@@ -162,4 +162,4 @@ This build does not call:
 - `net.optifine.shaders.SVertexBuilder.popEntity(...)`
 - any `glVertexAttrib`, `glUseProgram`, or `glBindBuffer` path
 
-The companion semantic debug shaderpack maps `12112` to pure magenta and `12110` to deep gray with no HDR emission.
+The companion semantic debug shaderpack maps `12112` to pure magenta and `12110` to deep gray with no HDR emission. Raid baked body quads stay on `12110`; only `raid_front_activity` / `raid_front_error` slot overlays enter the `12112` route.

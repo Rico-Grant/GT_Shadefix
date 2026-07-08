@@ -18,7 +18,7 @@ This table is the fixed source of truth for Java routing, runtime logs, and the 
 | 12109 | `AE_TERMINAL_TRACE` | Terminal debug trace quads only |
 | 12110 | `OC_BODY` | OpenComputers normal body and housing quads |
 | 12111 | `OC_LED_BAKED` | Confirmed OpenComputers baked LED quads |
-| 12112 | `OC_LED_TESR` | OpenComputers Case/Rack/Microcontroller TESR overlay quads |
+| 12112 | `OC_LED_TESR` | OpenComputers Case/Rack/Microcontroller/Raid TESR overlay quads |
 
 ## Required AE Routing Rules
 
@@ -33,4 +33,4 @@ This table is the fixed source of truth for Java routing, runtime logs, and the 
 
 ## OC TESR Rule
 
-Case/Rack/Microcontroller overlays are precise renderer routes, not generic filename guesses. If the renderer submits `POSITION_TEX`, the bridge must not hard-write entity data into the 5-int vertex format. A shader-compatible vertex format must be used before writing `12112 OC_LED_TESR`.
+Case/Rack/Microcontroller/Raid overlays are precise renderer routes, not generic filename guesses. If the renderer submits `POSITION_TEX`, the bridge must not hard-write entity data into the 5-int vertex format. The current debug path uses the verified OptiFine `blockEntityId` uniform override while logging `writeResult=no_entity_slot` for the original 5-int TESR vertices.

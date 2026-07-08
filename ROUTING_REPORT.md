@@ -14,13 +14,13 @@ Installed debug jar:
 - GregTech pipes/cables: `PipeRenderer.renderBlock` -> `PipeRenderer.renderPipeBlock` -> CCL `CCRenderState.writeVert`.
 - AE2 cable bus, terminals, smart channels, and drive LEDs: vanilla/Forge `BlockModelRenderer` BakedQuad path.
 - OpenComputers baked block bodies: vanilla/Forge `BlockModelRenderer` BakedQuad path.
-- OpenComputers case, microcontroller, and rack overlay lamps: TESR overlay draw path, probed before formal bloom.
+- OpenComputers case, microcontroller, rack, and raid slot overlay lamps: TESR overlay draw path, probed before formal bloom.
 
 ## Bridge Injection Points
 
 - CCL path: `CCRenderState.writeVert`, wrapping `BufferBuilder.endVertex`.
 - BakedQuad path: `BlockModelRenderer.renderModel` scopes the current block model, and `BufferBuilder.addVertexData(int[])` is wrapped while a routed quad is submitted.
-- TESR path: `CaseRenderer.renderFrontOverlay`, `MicrocontrollerRenderer.renderFrontOverlay`, and `RackMountableRenderEvent.TileEntity.renderOverlayFromAtlas` open an OC overlay route, then `BufferBuilder.endVertex()` records the actual transport format and attempts the scoped semantic write only if an OptiFine entity slot exists.
+- TESR path: `CaseRenderer.renderFrontOverlay`, `MicrocontrollerRenderer.renderFrontOverlay`, `RackMountableRenderEvent.TileEntity.renderOverlayFromAtlas`, and `RaidRenderer.renderSlot` open an OC overlay route, then `BufferBuilder.endVertex()` records the actual transport format and attempts the scoped semantic write only if an OptiFine entity slot exists.
 
 ## Dynamic Material IDs
 
@@ -58,6 +58,7 @@ OpenComputers routes:
 
 - Baked `opencomputers:*` model sprites -> `12110`.
 - Known TESR overlay methods listed above -> attempted `12112`.
+- `opencomputers:raid` baked `raid_front`, `raid_side`, and `generic_top` remain `12110`; only `raid_front_activity` / `raid_front_error` slot overlays route to `12112`.
 - There is intentionally no generic `_on`, `_light`, `_indicator`, or `blocks/overlay` string heuristic.
 
 ## Shader Rules
