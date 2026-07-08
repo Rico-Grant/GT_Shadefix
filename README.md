@@ -1,171 +1,217 @@
-# GregTech CEu OptiFine Shader Bridge
+# GT Shadefix
 
-Semantic debug build for the Supersymmetry HMCL instance.
+GT Shadefix is a small **client-side Minecraft 1.12.2 Forge mod** that helps OptiFine shaderpacks recognize dynamic modded blocks.
 
-This version writes semantic material ids into selected GregTech CEu CCL body renderers, audited AE2 baked quads, and OpenComputers TESR overlay transport probes. It uses the current `BufferBuilder`'s OptiFine `sVertexBuilder` entity-data stack and does not call any global shader entity stack.
+It was made for a Supersymmetry / GregTech CEu setup where many important blocks are not rendered like normal vanilla blocks. Without a bridge, a shaderpack may see them as one generic material, or may not see their useful state at all.
 
-Windows filesystem paths and ZIP/JAR entry names must not be mixed. See `docs/path_separator_rules.md` before changing shaderpack packaging or verification scripts.
+This mod does not add visual effects by itself. It only sends extra semantic material IDs to OptiFine shaders. A compatible shaderpack must read those IDs and decide how to render reflections, generated normals, LEDs, bloom, and other effects.
 
-## Output
+## What it is for
 
-`build/libs/gtceu-optifine-shader-bridge-semantic-debug.jar`
+GT Shadefix is mainly used to route:
 
-Do not use the older jars:
+- GregTech CEu machine bodies
+- GregTech pipes, wires, and insulated cables
+- selected Applied Energistics 2 baked quads
+- selected OpenComputers baked or TESR overlay passes
 
-- `gtceu-optifine-shader-bridge-debug-1.0.0.jar`
-- `gtceu-optifine-shader-bridge-release-1.1.0.jar`
-- `gtceu-optifine-shader-bridge-debug-1.1.0.jar`
-- `gtceu-optifine-shader-bridge-diagnostic-1.2.0.jar`
-- `gtceu-optifine-shader-bridge-diagnostic-1.3.0.jar`
-- `gtceu-optifine-shader-bridge-write-debug-1.4.0.jar`
-- `gtceu-optifine-shader-bridge-multiroute-debug-1.5.0.jar`
-- `gtceu-optifine-shader-bridge-routeprobe-debug-1.6.4.jar`
+The goal is to let the shader distinguish things such as:
 
-## What It Does
+- machine body vs. pipe vs. cable
+- AE controller light vs. cable channel light
+- ME drive LED vs. ME drive body
+- OC body vs. OC LED overlay
 
-During:
+## Current status
 
-`MetaTileEntityRenderer.renderBlock(...) -> MetaTileEntity.renderMetaTileEntity(...)`
+This is still an experimental semantic/debug build.
 
-it opens a `ThreadLocal` diagnostic scope:
+Confirmed focus areas:
 
-`activeMaterialGroup = machineBodyMaterialId`
+- GregTech CEu CCL-rendered machines and pipes
+- AE2 baked model routing
+- OpenComputers overlay transport tests
 
-During:
+Some AE2 and OC routes are still being tuned. For example, terminal state routing and OC LED bloom may require both bridge-side routing fixes and shaderpack-side material rules.
 
-`PipeRenderer.renderBlock(...) -> PipeRenderer.renderPipeBlock(...)`
+## Requirements
 
-it opens:
+- Minecraft 1.12.2
+- Forge
+- OptiFine for 1.12.2 shaders
+- GregTech CEu
+- A compatible shaderpack that uses the material IDs listed below
 
-- `activeMaterialGroup = pipeMaterialId` for non-cable pipe body geometry
-- `activeMaterialGroup = pipeMaterialId` for `CableRenderer` states whose registry path starts with `wire_`
-- `activeMaterialGroup = cableMaterialId` for insulated `CableRenderer` states whose registry path starts with `cable_`
+The mod is client-side only.
 
-Then it counts calls to:
+## Installation
 
-`codechicken.lib.render.CCRenderState.writeVert()`
+1. Build or download the bridge jar.
+2. Put the jar in the client `mods/` folder.
+3. Remove older GT Shadefix / GT Shader Bridge test jars from `mods/`.
+4. Start the game once to generate the config file.
+5. Open:
 
-It logs distinct vertex format signatures seen at that point, including:
+```text
+config/gt_shader_bridge.cfg
+```
 
-- current `BufferBuilder` class
-- whether a `sVertexBuilder` field exists on the buffer
-- `SVertexFormat.vertexSizeBlock`
-- `SVertexFormat.offsetEntity`
-- current `VertexFormat` byte size, int size, and element list
+6. Set:
 
-When CCL reaches its final `BufferBuilder.endVertex()` call, this build:
+```properties
+enabled=true
+writeEntityData=true
+```
 
-1. verifies the active format matches OptiFine's 14-int shader block layout;
-2. verifies `SVertexFormat.offsetEntity == 12`;
-3. reads the current buffer's `sVertexBuilder.entityData[entityDataIndex]`;
-4. temporarily replaces that top value with `debugMaterialId`;
-5. calls the original `BufferBuilder.endVertex()`;
-6. restores the previous top value in `finally`.
+7. Restart the game.
+8. Use a shaderpack that knows the IDs below.
 
-No global `Shaders` entity stack is touched. No OpenGL state is touched. No already-submitted vertex buffer data is edited after `endVertex()`.
+## Build output
 
-## Config
+The expected jar is:
 
-Created at:
+```text
+build/libs/gtceu-optifine-shader-bridge-semantic-debug.jar
+```
 
-`config/gt_shader_bridge.cfg`
-
-Defaults:
+## Important config options
 
 ```properties
 enabled=false
+writeEntityData=true
+
 machineBodyMaterialId=11990
 pipeMaterialId=11991
 cableMaterialId=11992
 frameMaterialId=11993
 panelMaterialId=11994
+
+routeAeOcBakedQuads=true
+probeOcTesrTransport=true
+caseTesrShaderFormatPoc=true
+
+logAeOcBakedQuadRoutes=true
+logSemanticTransport=true
 logVertexWriter=true
 logVertexFormat=true
-writeEntityData=true
 ```
 
-Set `enabled=true` for the diagnostic test.
+Recommended for testing:
 
-Expected log after a Basic Electrolyzer or other `gregtech:machine` MTE body is rebuilt:
+```properties
+enabled=true
+writeEntityData=true
+logAeOcBakedQuadRoutes=true
+logSemanticTransport=true
+```
+
+Recommended after routes are confirmed:
+
+```properties
+logAeOcBakedQuadRoutes=false
+logSemanticTransport=false
+logVertexWriter=false
+logVertexFormat=false
+```
+
+## Material ID map
+
+### GregTech CEu
+
+| ID | Meaning |
+|---:|---|
+| 11990 | GregTech machine body |
+| 11991 | GregTech pipe / uninsulated wire body |
+| 11992 | GregTech insulated cable body |
+| 11993 | reserved frame / structure route |
+| 11994 | reserved panel / screen route |
+
+### Applied Energistics 2
+
+| ID | Meaning |
+|---:|---|
+| 5072 | legacy AE terminal dark state |
+| 5073 | legacy AE terminal medium state |
+| 5074 | legacy AE terminal bright state |
+| 12100 | AE body / base quads |
+| 12101 | AE UVL light |
+| 12102 | AE controller light |
+| 12103 | AE cable idle channel texture |
+| 12104 | AE cable low-channel texture |
+| 12105 | AE cable high-channel texture |
+| 12106 | AE drive LED |
+| 12107 | AE crafting light |
+| 12108 | AE monitor light |
+| 12109 | AE terminal trace / debug route |
+
+### OpenComputers
+
+| ID | Meaning |
+|---:|---|
+| 12110 | OC body / housing |
+| 12111 | OC baked LED candidate |
+| 12112 | OC TESR overlay transport probe |
+
+## How it works
+
+GT Shadefix does three main things:
+
+1. It wraps selected GregTech CEu renderers while they submit vertices.
+2. It writes a semantic material ID into OptiFine's shader entity-data slot.
+3. It lets the shaderpack use that ID to apply custom material logic.
+
+For AE2 and OpenComputers, it also inspects baked quad sprites or selected overlay render paths and routes them to more specific IDs.
+
+## Shaderpack side
+
+The shaderpack should read the incoming entity or block-entity ID and branch on it.
+
+Example idea:
+
+```glsl
+if (entityId == 11990) {
+    // GregTech machine body: generated normals + metallic reflection
+}
+
+if (entityId == 12106) {
+    // ME drive LED: HDR emission + bloom
+}
+```
+
+Exact variable names depend on the shaderpack.
+
+## Troubleshooting
+
+### Nothing changes in game
+
+Check that:
+
+- this jar is in `mods/`
+- old bridge jars were removed
+- `enabled=true`
+- the compatible shaderpack is selected
+- the shaderpack has rules for the material IDs above
+
+### GT machines work, but AE2 or OC does not
+
+Check the log for lines like:
 
 ```text
-GTShaderBridge: CCL MTE vertex writer detected, vertices=N
-GTShaderBridge: CCL MTE vertex format detected: buffer=..., sVertexBuilder=..., optifine=SVertexFormat{...}, formatClass=..., sizeBytes=..., intSize=..., elements=...
-GTShaderBridge: writing OptiFine entity data on CCL MTE vertices, materialId=11990
+GTShaderBridge: semantic route detected
 ```
 
-AE2/OpenComputers semantic debug routes use:
+If those lines do not appear for AE2 or OC blocks, the current route is not reaching that renderer.
 
-- `12100`: AE body/backdrop/base quads.
-- `12101`: AE UVL light.
-- `12102`: AE controller light.
-- `12103`: AE cable idle (`channels_00`, `channels_10`).
-- `12104`: AE cable low channel (`channels_01..04`).
-- `12105`: AE cable high channel (`channels_11..14`).
-- `12106`: AE drive LED.
-- `12107`: AE crafting light.
-- `12108`: AE monitor light.
-- `12109`: AE terminal trace.
-- `12110`: OpenComputers baked housing/body.
-- `12111`: OpenComputers baked LED.
-- `12112`: OpenComputers TESR overlay transport probe for Case, Rack, Microcontroller, and Raid overlay draws.
+### The shader reports `Invalid program gbuffers_block`
 
-For 5-8 channel smart cables, AE2 emits both low and high channel quads; the bridge routes those quads independently.
+That usually means the shaderpack failed to compile. The bridge may still be loaded, but the shader cannot use the routed IDs until the shader compile error is fixed.
 
-OpenComputers TESR transport is intentionally `transportMode=uniform_override_scope`. Original OC overlays still submit `POSITION_TEX` vertices and should log `entitySlotWrite=no_entity_slot`; that is expected and must not be "fixed" by changing the vertex stride. A successful scope logs `uniformOverride=success`, previous/active block entity IDs, shader pass, and restore result.
+### Performance notes
 
-## Reverse Findings
+The GregTech path is usually lightweight. AE2 and OC debug routing can be more expensive because it inspects baked quads and logs routes. Turn off debug logging after testing.
 
-Current jars inspected:
+## Development notes
 
-- `preview_OptiFine_1.12.2_HD_U_G6_pre1.jar`
-- `gregtech-1.12.2-2.8.10-beta.jar`
-- `CodeChickenLib-1.12.2-3.2.3.358-universal.jar`
+This bridge deliberately avoids direct OpenGL rendering changes. It should not call `glUseProgram`, bind buffers, or edit already-submitted vertex data. The intended design is to tag vertices during normal rendering, then let the shaderpack decide the visual result.
 
-GregTech path:
-
-`MetaTileEntityRenderer.renderBlock(...)`
-
-calls:
-
-`MetaTileEntity.renderMetaTileEntity(CCRenderState, Matrix4, IVertexOperation[])`
-
-CCL vertex path:
-
-`CCRenderState.render()`
-
-loops model vertices and calls:
-
-`CCRenderState.writeVert()`
-
-`writeVert()` writes the current vertex by calling `BufferBuilder` methods for each current `VertexFormat` element, then calls:
-
-`BufferBuilder.endVertex()` / SRG `func_181675_d()`
-
-This write-debug build injects at `CCRenderState.writeVert()` HEAD for logging and redirects only the `BufferBuilder.endVertex()` call inside `CCRenderState.writeVert()`.
-
-The write path is skipped unless the runtime format matches OptiFine's shader block vertex layout and exposes the entity-data slot.
-
-Pipe path confirmed in `gregtech-1.12.2-2.8.10-beta.jar`:
-
-`PipeRenderer.renderBlock(IBlockAccess, BlockPos, IBlockState, BufferBuilder)`
-
-binds the provided `BufferBuilder` to `CCRenderState`, builds a `PipeRenderContext`, calls:
-
-`PipeRenderer.renderPipeBlock(CCRenderState, PipeRenderContext)`
-
-then renders optional pipe frames and covers separately. This bridge wraps only `renderPipeBlock`; it does not wrap `renderFrame`, `renderCovers`, block damage rendering, item rendering, GUI, TESR, or FastTESR.
-
-## Deliberately Not Used
-
-This build does not call:
-
-- `net.optifine.shaders.Shaders.pushEntity(...)`
-- `net.optifine.shaders.Shaders.popEntity()`
-- `net.optifine.shaders.SVertexBuilder.pushEntity(...)`
-- `net.optifine.shaders.SVertexBuilder.popEntity(...)`
-- any `glVertexAttrib`, `glUseProgram`, or `glBindBuffer` path
-
-The companion semantic debug shaderpack maps `12112` to pure magenta and `12110` to deep gray with no HDR emission. Raid baked body quads stay on `12110`; only `raid_front_activity` / `raid_front_error` slot overlays enter the `12112` route.
-
-The first formal AE/OC shader branch is `ComplementaryReimagined_r5.8.1_SuSyIPBR_AEOC_OCBloom_V1.zip`. It enables conservative bloom for OC TESR LEDs and confirmed AE light IDs only. `12109 AE_TERMINAL_TRACE` remains non-emissive until terminal routing is promoted out of debug.
+Use the log output to verify routing before changing shader brightness or bloom values.
