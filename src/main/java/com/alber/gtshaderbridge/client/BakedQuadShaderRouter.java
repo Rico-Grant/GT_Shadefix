@@ -138,14 +138,6 @@ public final class BakedQuadShaderRouter {
             return routeAe2(iconName);
         }
 
-        if (iconName.startsWith("opencomputers:")) {
-            return new RouteDecision(SemanticIds.OC_BODY, "oc_baked_body", false);
-        }
-
-        if ("opencomputers".equals(registryNamespace(state))) {
-            return new RouteDecision(SemanticIds.OC_BODY, "oc_baked_body_namespace_fallback", false);
-        }
-
         return null;
     }
 
