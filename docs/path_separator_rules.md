@@ -36,6 +36,10 @@ When writing new archive tools, prefer `/` for entry names. When using
 `[System.IO.Compression.ZipFile]::CreateFromDirectory(...)`, immediately verify
 the actual `FullName` values because .NET may preserve Windows separators.
 
+For this repository, use `tools/Pack-Shaderpack.ps1` instead of
+`ZipFile.CreateFromDirectory(...)`. The script writes `/`-separated entries and
+fails if any `\` entry remains.
+
 ## Rule Of Thumb
 
 - Real local file: use filesystem APIs and `\`.
