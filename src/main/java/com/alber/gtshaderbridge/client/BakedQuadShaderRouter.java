@@ -7,6 +7,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -178,6 +179,15 @@ public final class BakedQuadShaderRouter {
         if (iconName.endsWith("monitor_sides_status_has_channel")) {
             return new RouteDecision(SemanticIds.AE_TERMINAL_BRIGHT_LEGACY, "ae_terminal_status_powered_has_channel", false);
         }
+        if (iconName.endsWith("monitor_light")) {
+            if (hasLightmapElement(quad) || isNonDiffuseQuad(quad)) {
+                return new RouteDecision(SemanticIds.AE_MONITOR_LIGHT, "ae_light_panel_uvl_powered", false);
+            }
+            return new RouteDecision(SemanticIds.AE_BODY, "ae_light_panel_off_body", false);
+        }
+        if (iconName.endsWith("monitor_sides")) {
+            return new RouteDecision(SemanticIds.AE_BODY, "ae_monitor_sides_body", false);
+        }
         if (iconName.endsWith("controller_lights") || iconName.endsWith("controller_column_lights")
             || iconName.endsWith("controller_conflict") || iconName.endsWith("controller_column_conflict")) {
             return new RouteDecision(SemanticIds.AE_CONTROLLER_LIGHT, "ae_controller_precise_light_texture", false);
@@ -214,6 +224,8 @@ public final class BakedQuadShaderRouter {
     private static boolean shouldUseAeGenericEmission(String iconName) {
         return !iconName.contains("parts/cable/")
             && !iconName.contains("terminal")
+            && !iconName.contains("monitor_light")
+            && !iconName.contains("monitor_sides")
             && !iconName.contains("monitor_sides_status")
             && !iconName.contains("drive_cell")
             && !iconName.contains("controller");
@@ -235,9 +247,19 @@ public final class BakedQuadShaderRouter {
     }
 
     private static RouteDecision routeTerminalScreen(String iconName, BakedQuad quad, String reasonPrefix) {
-        boolean poweredModel = hasLightmapElement(quad);
-        int id = poweredModel ? SemanticIds.AE_TERMINAL_BRIGHT_LEGACY : SemanticIds.AE_TERMINAL_DARK_LEGACY;
-        return new RouteDecision(id, reasonPrefix + (poweredModel ? "_uvl_powered" : "_off_no_uvl"), false);
+        RenderContext context = ACTIVE_CONTEXT.get();
+        boolean activeModel = context != null && context.isTerminalFacePowered(quad);
+        if (!activeModel && (hasLightmapElement(quad) || isNonDiffuseQuad(quad))) {
+            activeModel = true;
+        }
+        if (!activeModel) {
+            return new RouteDecision(SemanticIds.AE_TERMINAL_DARK_LEGACY, reasonPrefix + "_off_or_inactive", false);
+        }
+
+        int id = iconName.endsWith("_bright") || iconName.endsWith("lights_bright")
+            ? SemanticIds.AE_TERMINAL_BRIGHT_LEGACY
+            : SemanticIds.AE_TERMINAL_MEDIUM_LEGACY;
+        return new RouteDecision(id, reasonPrefix + "_powered", false);
     }
 
     private static int parseChannelTextureIndex(String iconName) {
@@ -301,7 +323,7 @@ public final class BakedQuadShaderRouter {
     }
 
     private static boolean hasLightmapElement(BakedQuad quad) {
-        Object value = invoke(quad, new String[] {"func_178210_d", "getFormat"});
+        Object value = invoke(quad, new String[] {"getFormat", "func_178210_d"});
         if (!(value instanceof VertexFormat)) {
             return false;
         }
@@ -327,6 +349,16 @@ public final class BakedQuadShaderRouter {
         }
 
         return false;
+    }
+
+    private static boolean isNonDiffuseQuad(BakedQuad quad) {
+        Object value = invoke(quad, new String[] {"shouldApplyDiffuseLighting", "func_178212_b"});
+        return value instanceof Boolean && !((Boolean) value).booleanValue();
+    }
+
+    private static EnumFacing quadFace(BakedQuad quad) {
+        Object value = invoke(quad, new String[] {"getFace", "func_178210_d"});
+        return value instanceof EnumFacing ? (EnumFacing) value : null;
     }
 
     @SuppressWarnings("unchecked")
@@ -394,6 +426,8 @@ public final class BakedQuadShaderRouter {
         private final long rand;
         private IdentityHashMap<int[], BakedQuad> quadsByVertexData;
         private List<BakedQuad> quads;
+        private EnumSet<EnumFacing> poweredTerminalFaces;
+        private boolean anyPoweredTerminalFace;
 
         private RenderContext(RenderContext parent) {
             this.parent = parent;
@@ -430,6 +464,15 @@ public final class BakedQuadShaderRouter {
             return null;
         }
 
+        private boolean isTerminalFacePowered(BakedQuad quad) {
+            ensureQuadsLoaded();
+            EnumFacing face = quadFace(quad);
+            if (face != null && poweredTerminalFaces.contains(face)) {
+                return true;
+            }
+            return face == null && anyPoweredTerminalFace;
+        }
+
         private void ensureQuadsLoaded() {
             if (quads != null) {
                 return;
@@ -443,10 +486,13 @@ public final class BakedQuadShaderRouter {
                     addQuads(modelQuads(model, state, faces[i], rand));
                 }
                 addQuads(modelQuads(model, state, null, rand));
+                scanPoweredTerminalFaces();
             } catch (Throwable e) {
                 GTShaderBridge.LOGGER.warn("[GTShaderBridge] Failed to inspect AE2/OpenComputers baked quads; routing skipped for this model", e);
                 quads.clear();
                 quadsByVertexData.clear();
+                poweredTerminalFaces = EnumSet.noneOf(EnumFacing.class);
+                anyPoweredTerminalFace = false;
             }
         }
 
@@ -465,6 +511,24 @@ public final class BakedQuadShaderRouter {
                 if (vertexData != null) {
                     quadsByVertexData.put(vertexData, quad);
                 }
+            }
+        }
+
+        private void scanPoweredTerminalFaces() {
+            poweredTerminalFaces = EnumSet.noneOf(EnumFacing.class);
+            anyPoweredTerminalFace = false;
+            for (int i = 0; i < quads.size(); i++) {
+                BakedQuad quad = quads.get(i);
+                String iconName = iconName(quad);
+                if (!iconName.endsWith("monitor_sides_status_on") && !iconName.endsWith("monitor_sides_status_has_channel")) {
+                    continue;
+                }
+
+                EnumFacing face = quadFace(quad);
+                if (face != null) {
+                    poweredTerminalFaces.add(face);
+                }
+                anyPoweredTerminalFace = true;
             }
         }
 
