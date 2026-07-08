@@ -33,4 +33,16 @@ This table is the fixed source of truth for Java routing, runtime logs, and the 
 
 ## OC TESR Rule
 
-Case/Rack/Microcontroller/Raid overlays are precise renderer routes, not generic filename guesses. If the renderer submits `POSITION_TEX`, the bridge must not hard-write entity data into the 5-int vertex format. The current debug path uses the verified OptiFine `blockEntityId` uniform override while logging `writeResult=no_entity_slot` for the original 5-int TESR vertices.
+Case/Rack/Microcontroller/Raid overlays are precise renderer routes, not generic filename guesses. If the renderer submits `POSITION_TEX`, the bridge must not hard-write entity data into the 5-int vertex format. The verified transport is:
+
+- `transportMode=uniform_override_scope`
+- `entitySlotWrite=no_entity_slot`
+- `uniformOverride=success`
+
+`no_entity_slot` is expected for OpenComputers `POSITION_TEX` overlays. Do not expand or stride-shift those vertices to fake an OptiFine entity slot.
+
+Every OC TESR overlay scope must log `previousBlockEntityId`, `activeBlockEntityId`, `restoreResult`, `renderer`, `sprite`, `shaderPass`, and `transportMode`. A failed uniform restore is an `ERROR`.
+
+## Parallel Release Strategy
+
+OC and AE2 now move in parallel. OC may enter the first formal bloom shader once overlay leakage checks pass. AE2 remains debug-first except for confirmed low-risk IDs: `12104 AE_CABLE_LOW_CHANNEL`, `12105 AE_CABLE_HIGH_CHANNEL`, `12106 AE_DRIVE_LED`, and explicit `12101 AE_UVL_LIGHT` faces. `12109 AE_TERMINAL_TRACE` must not emit in the formal shader.

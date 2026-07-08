@@ -20,7 +20,7 @@ Installed debug jar:
 
 - CCL path: `CCRenderState.writeVert`, wrapping `BufferBuilder.endVertex`.
 - BakedQuad path: `BlockModelRenderer.renderModel` scopes the current block model, and `BufferBuilder.addVertexData(int[])` is wrapped while a routed quad is submitted.
-- TESR path: `CaseRenderer.renderFrontOverlay`, `MicrocontrollerRenderer.renderFrontOverlay`, `RackMountableRenderEvent.TileEntity.renderOverlayFromAtlas`, and `RaidRenderer.renderSlot` open an OC overlay route, then `BufferBuilder.endVertex()` records the actual transport format and attempts the scoped semantic write only if an OptiFine entity slot exists.
+- TESR path: `CaseRenderer.renderFrontOverlay`, `MicrocontrollerRenderer.renderFrontOverlay`, `RackMountableRenderEvent.TileEntity.renderOverlayFromAtlas`, and `RaidRenderer.renderSlot` open an OC overlay route. The verified transport is a scoped OptiFine `blockEntityId` uniform override, not a vertex entity-slot write. `POSITION_TEX` overlays should log `transportMode=uniform_override_scope`, `entitySlotWrite=no_entity_slot`, and `uniformOverride=success`.
 
 ## Dynamic Material IDs
 
@@ -61,6 +61,12 @@ OpenComputers routes:
 - `opencomputers:raid` baked `raid_front`, `raid_side`, and `generic_top` remain `12110`; only `raid_front_activity` / `raid_front_error` slot overlays route to `12112`.
 - There is intentionally no generic `_on`, `_light`, `_indicator`, or `blocks/overlay` string heuristic.
 
+OC leakage checks:
+
+- Case off should produce only `OC_BODY`; running/activity/error should scope only their matching front overlay to `12112`.
+- Empty rack should produce only `OC_BODY`; mounted rack overlays may scope to `12112`, but rack frame, server body, mounted item body, and neighboring blocks must not inherit it.
+- Microcontroller, Raid, Redstone, and Motion Sensor body quads remain `12110` or their normal body route; only verified overlay draws may enter `12112`.
+
 ## Shader Rules
 
 The semantic debug shaderpack maps `12100..12112` in:
@@ -79,4 +85,8 @@ With `logAeOcBakedQuadRoutes=true`, `latest.log` should contain one line per uni
 
 With `probeOcTesrTransport=true`, OpenComputers TESR overlays should also log:
 
-`GTShaderBridge: semantic transport detected, source=OC_TESR, renderer=..., overlay=..., writeResult=..., intSize=..., hasEntitySlotCandidate=...`
+`GTShaderBridge: semantic uniform scope opened, source=OC_TESR, renderer=..., sprite=..., transportMode=uniform_override_scope, uniformOverride=success, previousBlockEntityId=..., activeBlockEntityId=..., shaderPass=...`
+
+`GTShaderBridge: semantic transport detected, source=OC_TESR, renderer=..., sprite=..., transportMode=uniform_override_scope, entitySlotWrite=no_entity_slot, uniformOverride=success, intSize=5, hasEntitySlotCandidate=false, shaderProgram=...`
+
+`GTShaderBridge: semantic uniform scope closed, source=OC_TESR, renderer=..., sprite=..., restoreResult=success,restoredBlockEntityId=..., shaderPass=...`

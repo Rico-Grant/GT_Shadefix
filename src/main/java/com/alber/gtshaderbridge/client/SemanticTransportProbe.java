@@ -11,11 +11,12 @@ import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.util.ResourceLocation;
 
 public final class SemanticTransportProbe {
+    private static final int MISSING_BLOCK_ENTITY_ID = Integer.MIN_VALUE;
+    private static final String TRANSPORT_MODE = "uniform_override_scope";
     private static final ThreadLocal<RouteScope> ACTIVE_ROUTE = new ThreadLocal<RouteScope>();
     private static final ThreadLocal<EntityDataTop> ACTIVE_WRITE = new ThreadLocal<EntityDataTop>();
     private static final Set<String> LOGGED_ROUTES = Collections.synchronizedSet(new HashSet<String>());
     private static final Set<String> LOGGED_TRANSPORTS = Collections.synchronizedSet(new HashSet<String>());
-    private static final Set<String> LOGGED_UNIFORM_OVERRIDES = Collections.synchronizedSet(new HashSet<String>());
     private static volatile boolean entityWriteDisabled;
     private static volatile boolean loggedEntityWriteDisabled;
     private static volatile boolean loggedUniformOverrideFailure;
@@ -43,29 +44,29 @@ public final class SemanticTransportProbe {
         scope.vertices++;
         TransportSummary summary = TransportSummary.capture(buffer);
         EntityDataTop entityDataTop = null;
-        String writeResult = "not_attempted";
+        String entitySlotWrite = "not_attempted";
         String packedEntityWords = "unwritten";
 
         if (!GTShaderBridgeConfig.writeEntityData) {
-            writeResult = "disabled_by_config";
+            entitySlotWrite = "disabled_by_config";
         } else if (entityWriteDisabled) {
-            writeResult = "disabled_after_error";
+            entitySlotWrite = "disabled_after_error";
         } else if (!summary.hasEntitySlotCandidate) {
-            writeResult = "no_entity_slot";
+            entitySlotWrite = "no_entity_slot";
         } else {
             try {
                 entityDataTop = EntityDataTop.capture(buffer);
                 entityDataTop.set(packEntity(scope.materialId));
                 ACTIVE_WRITE.set(entityDataTop);
                 packedEntityWords = entityDataTop.packedWords();
-                writeResult = "success";
+                entitySlotWrite = "success";
             } catch (Throwable e) {
-                writeResult = "write_failed";
+                entitySlotWrite = "write_failed";
                 disableEntityWrites(e);
             }
         }
 
-        logTransport(scope, summary, writeResult, packedEntityWords);
+        logTransport(scope, summary, entitySlotWrite, packedEntityWords);
     }
 
     public static void endBufferEndVertex() {
@@ -90,17 +91,18 @@ public final class SemanticTransportProbe {
         }
     }
 
-    private static void logTransport(RouteScope scope, TransportSummary summary, String writeResult, String packedEntityWords) {
+    private static void logTransport(RouteScope scope, TransportSummary summary, String entitySlotWrite, String packedEntityWords) {
         if (!GTShaderBridgeConfig.logSemanticTransport) {
             return;
         }
 
         String key = scope.renderer + "|" + scope.method + "|" + scope.overlayName + "|" + scope.materialId + "|"
-            + summary.formatSignature + "|" + writeResult;
+            + summary.formatSignature + "|" + entitySlotWrite;
         if (LOGGED_TRANSPORTS.add(key)) {
-            GTShaderBridge.LOGGER.info("GTShaderBridge: semantic transport detected, source=OC_TESR, renderer={}, method={}, sprite={}, modelClass=TESR, chosenId={}({}), selectionReason=oc_tesr_precise_renderer_route, legacyFallback=false, verticesSeen={}, writeResult={}, packedEntityWords={}, {}",
+            GTShaderBridge.LOGGER.info("GTShaderBridge: semantic transport detected, source=OC_TESR, renderer={}, method={}, sprite={}, modelClass=TESR, chosenId={}({}), selectionReason=oc_tesr_precise_renderer_route, legacyFallback=false, transportMode={}, entitySlotWrite={}, uniformOverride={}, previousBlockEntityId={}, activeBlockEntityId={}, verticesSeen={}, packedEntityWords={}, {}",
                 scope.renderer, scope.method, scope.overlayName, scope.materialId, SemanticIds.nameOf(scope.materialId),
-                scope.vertices, writeResult, packedEntityWords, summary.formatSignature);
+                TRANSPORT_MODE, entitySlotWrite, scope.blockEntityIdOverride.beginResult, scope.blockEntityIdOverride.previous,
+                scope.blockEntityIdOverride.activeValue, scope.vertices, packedEntityWords, summary.formatSignature);
         }
     }
 
@@ -109,7 +111,7 @@ public final class SemanticTransportProbe {
             Class<?> shaders = Class.forName("net.optifine.shaders.Shaders", false, SemanticTransportProbe.class.getClassLoader());
             Object uniform = shaders.getField("uniform_blockEntityId").get(null);
             if (uniform == null) {
-                return UniformOverride.noop("uniform_missing");
+                return UniformOverride.noop("uniform_missing", scope.materialId);
             }
 
             Method getValue = uniform.getClass().getMethod("getValue");
@@ -117,28 +119,39 @@ public final class SemanticTransportProbe {
             int previous = ((Integer) getValue.invoke(uniform)).intValue();
             setValue.invoke(uniform, Integer.valueOf(scope.materialId));
 
-            String result = "success,previous=" + previous + ",active=" + scope.materialId;
-            logUniformOverride(scope, result);
-            return new UniformOverride(uniform, setValue, previous, true);
+            UniformOverride override = new UniformOverride(uniform, setValue, previous, scope.materialId, true, "success");
+            logUniformOverride(scope, override);
+            return override;
         } catch (Throwable e) {
             if (!loggedUniformOverrideFailure) {
                 loggedUniformOverrideFailure = true;
                 GTShaderBridge.LOGGER.warn("[GTShaderBridge] OC TESR blockEntityId uniform override failed; continuing with BufferBuilder entity-data probe only", e);
             }
-            return UniformOverride.noop("failed");
+            UniformOverride override = UniformOverride.noop("failed", scope.materialId);
+            logUniformOverride(scope, override);
+            return override;
         }
     }
 
-    private static void logUniformOverride(RouteScope scope, String result) {
+    private static void logUniformOverride(RouteScope scope, UniformOverride override) {
         if (!GTShaderBridgeConfig.logSemanticTransport) {
             return;
         }
 
-        String key = scope.renderer + "|" + scope.method + "|" + scope.overlayName + "|" + result;
-        if (LOGGED_UNIFORM_OVERRIDES.add(key)) {
-            GTShaderBridge.LOGGER.info("GTShaderBridge: semantic uniform override detected, source=OC_TESR, renderer={}, method={}, sprite={}, chosenId={}({}), target=blockEntityId, result={}",
-                scope.renderer, scope.method, scope.overlayName, scope.materialId, SemanticIds.nameOf(scope.materialId), result);
+        GTShaderBridge.LOGGER.info("GTShaderBridge: semantic uniform scope opened, source=OC_TESR, renderer={}, method={}, sprite={}, chosenId={}({}), target=blockEntityId, transportMode={}, uniformOverride={}, previousBlockEntityId={}, activeBlockEntityId={}, currentGlProgram={}, shaderPass={}",
+            scope.renderer, scope.method, scope.overlayName, scope.materialId, SemanticIds.nameOf(scope.materialId),
+            TRANSPORT_MODE, override.beginResult, override.previous, override.activeValue, currentGlProgram(), shaderProgramSummary());
+    }
+
+    private static void logUniformRestore(RouteScope scope, String restoreResult) {
+        if (!GTShaderBridgeConfig.logSemanticTransport) {
+            return;
         }
+
+        GTShaderBridge.LOGGER.info("GTShaderBridge: semantic uniform scope closed, source=OC_TESR, renderer={}, method={}, sprite={}, chosenId={}({}), target=blockEntityId, transportMode={}, uniformOverride={}, previousBlockEntityId={}, activeBlockEntityId={}, restoreResult={}, currentGlProgram={}, shaderPass={}",
+            scope.renderer, scope.method, scope.overlayName, scope.materialId, SemanticIds.nameOf(scope.materialId),
+            TRANSPORT_MODE, scope.blockEntityIdOverride.beginResult, scope.blockEntityIdOverride.previous,
+            scope.blockEntityIdOverride.activeValue, restoreResult, currentGlProgram(), shaderProgramSummary());
     }
 
     private static long packEntity(int materialId) {
@@ -292,7 +305,8 @@ public final class SemanticTransportProbe {
 
         @Override
         public void close() {
-            blockEntityIdOverride.closeQuietly();
+            String restoreResult = blockEntityIdOverride.closeAndReport(this);
+            logUniformRestore(this, restoreResult);
             ACTIVE_ROUTE.set(parent);
         }
     }
@@ -301,28 +315,35 @@ public final class SemanticTransportProbe {
         private final Object uniform;
         private final Method setValue;
         private final int previous;
+        private final int activeValue;
         private final boolean active;
+        private final String beginResult;
 
-        private UniformOverride(Object uniform, Method setValue, int previous, boolean active) {
+        private UniformOverride(Object uniform, Method setValue, int previous, int activeValue, boolean active, String beginResult) {
             this.uniform = uniform;
             this.setValue = setValue;
             this.previous = previous;
+            this.activeValue = activeValue;
             this.active = active;
+            this.beginResult = beginResult;
         }
 
-        private static UniformOverride noop(String reason) {
-            return new UniformOverride(null, null, 0, false);
+        private static UniformOverride noop(String reason, int activeValue) {
+            return new UniformOverride(null, null, MISSING_BLOCK_ENTITY_ID, activeValue, false, reason);
         }
 
-        private void closeQuietly() {
+        private String closeAndReport(RouteScope scope) {
             if (!active) {
-                return;
+                return "noop:" + beginResult;
             }
 
             try {
                 setValue.invoke(uniform, Integer.valueOf(previous));
-            } catch (Throwable ignored) {
-                // The next OptiFine block entity update will refresh this uniform.
+                return "success,restoredBlockEntityId=" + previous;
+            } catch (Throwable e) {
+                GTShaderBridge.LOGGER.error("GTShaderBridge: OC TESR blockEntityId uniform restore failed, renderer={}, method={}, sprite={}, previousBlockEntityId={}, activeBlockEntityId={}, transportMode={}",
+                    scope.renderer, scope.method, scope.overlayName, previous, activeValue, TRANSPORT_MODE, e);
+                return "failed:" + e.getClass().getName();
             }
         }
     }

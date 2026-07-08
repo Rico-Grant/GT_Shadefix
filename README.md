@@ -110,6 +110,8 @@ AE2/OpenComputers semantic debug routes use:
 
 For 5-8 channel smart cables, AE2 emits both low and high channel quads; the bridge routes those quads independently.
 
+OpenComputers TESR transport is intentionally `transportMode=uniform_override_scope`. Original OC overlays still submit `POSITION_TEX` vertices and should log `entitySlotWrite=no_entity_slot`; that is expected and must not be "fixed" by changing the vertex stride. A successful scope logs `uniformOverride=success`, previous/active block entity IDs, shader pass, and restore result.
+
 ## Reverse Findings
 
 Current jars inspected:
@@ -163,3 +165,5 @@ This build does not call:
 - any `glVertexAttrib`, `glUseProgram`, or `glBindBuffer` path
 
 The companion semantic debug shaderpack maps `12112` to pure magenta and `12110` to deep gray with no HDR emission. Raid baked body quads stay on `12110`; only `raid_front_activity` / `raid_front_error` slot overlays enter the `12112` route.
+
+The first formal AE/OC shader branch is `ComplementaryReimagined_r5.8.1_SuSyIPBR_AEOC_OCBloom_V1.zip`. It enables conservative bloom for OC TESR LEDs and confirmed AE light IDs only. `12109 AE_TERMINAL_TRACE` remains non-emissive until terminal routing is promoted out of debug.
