@@ -4,6 +4,8 @@ Semantic debug build for the Supersymmetry HMCL instance.
 
 This version writes semantic material ids into selected GregTech CEu CCL body renderers, audited AE2 baked quads, and OpenComputers TESR overlay transport probes. It uses the current `BufferBuilder`'s OptiFine `sVertexBuilder` entity-data stack and does not call any global shader entity stack.
 
+Windows filesystem paths and ZIP/JAR entry names must not be mixed. See `docs/path_separator_rules.md` before changing shaderpack packaging or verification scripts.
+
 ## Output
 
 `build/libs/gtceu-optifine-shader-bridge-semantic-debug.jar`

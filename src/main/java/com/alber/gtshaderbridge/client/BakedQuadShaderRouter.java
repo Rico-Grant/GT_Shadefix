@@ -194,9 +194,6 @@ public final class BakedQuadShaderRouter {
                 return new RouteDecision(SemanticIds.AE_CABLE_IDLE, "ae_cable_channels_00_or_10_idle", false);
             }
             if (channelsIndex >= 1 && channelsIndex <= 4) {
-                if (context != null && context.hasHighSmartChannelLayer()) {
-                    return new RouteDecision(SemanticIds.AE_CABLE_IDLE, "ae_cable_low_layer_black_gap_when_high_group_present", false);
-                }
                 return new RouteDecision(SemanticIds.AE_CABLE_LOW_CHANNEL, "ae_cable_channels_01_04_low", false);
             }
             if (channelsIndex >= 11 && channelsIndex <= 14) {
@@ -379,7 +376,6 @@ public final class BakedQuadShaderRouter {
         private final long rand;
         private IdentityHashMap<int[], BakedQuad> quadsByVertexData;
         private List<BakedQuad> quads;
-        private Boolean hasHighSmartChannelLayer;
 
         private RenderContext(RenderContext parent) {
             this.parent = parent;
@@ -452,25 +448,6 @@ public final class BakedQuadShaderRouter {
                     quadsByVertexData.put(vertexData, quad);
                 }
             }
-        }
-
-        private boolean hasHighSmartChannelLayer() {
-            if (hasHighSmartChannelLayer != null) {
-                return hasHighSmartChannelLayer.booleanValue();
-            }
-
-            ensureQuadsLoaded();
-            for (int i = 0; i < quads.size(); i++) {
-                String iconName = iconName(quads.get(i));
-                if ((iconName.contains("parts/cable/smart/channels_") || iconName.contains("parts/cable/dense_smart/channels_"))
-                    && parseChannelTextureIndex(iconName) >= 11 && parseChannelTextureIndex(iconName) <= 14) {
-                    hasHighSmartChannelLayer = Boolean.TRUE;
-                    return true;
-                }
-            }
-
-            hasHighSmartChannelLayer = Boolean.FALSE;
-            return false;
         }
 
         private static boolean sameVertexData(int[] left, int[] right) {
