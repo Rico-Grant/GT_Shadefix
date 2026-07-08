@@ -1,6 +1,7 @@
 package com.alber.gtshaderbridge.mixin;
 
 import com.alber.gtshaderbridge.client.SemanticTransportProbe;
+import java.lang.reflect.Method;
 import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.util.ResourceLocation;
@@ -32,11 +33,45 @@ public abstract class MixinRaidRenderer {
     }
 
     private static ResourceLocation overlayLocation(TextureAtlasSprite icon) {
-        if (icon == null || icon.getIconName() == null) {
+        Object iconName = invoke(icon, new String[] {"func_94215_i", "getIconName"});
+        if (!(iconName instanceof String)) {
             return null;
         }
 
-        return new ResourceLocation(icon.getIconName());
+        return new ResourceLocation((String) iconName);
+    }
+
+    private static Object invoke(Object target, String[] names) {
+        if (target == null) {
+            return null;
+        }
+
+        Class<?> type = target.getClass();
+        while (type != null) {
+            for (int i = 0; i < names.length; i++) {
+                try {
+                    Method method = type.getMethod(names[i]);
+                    method.setAccessible(true);
+                    return method.invoke(target);
+                } catch (NoSuchMethodException ignored) {
+                    // Try declared/private methods or the next runtime/deobfuscated name.
+                } catch (Throwable ignored) {
+                    return null;
+                }
+
+                try {
+                    Method method = type.getDeclaredMethod(names[i]);
+                    method.setAccessible(true);
+                    return method.invoke(target);
+                } catch (NoSuchMethodException ignored) {
+                    // Try the next runtime/deobfuscated name.
+                } catch (Throwable ignored) {
+                    return null;
+                }
+            }
+            type = type.getSuperclass();
+        }
+        return null;
     }
 
     private static void closeRoute() {
