@@ -143,22 +143,26 @@ public final class BakedQuadShaderRouter {
 
     private static RouteDecision routeAe2(String iconName) {
         if (iconName.endsWith("terminal_dark")) {
-            return new RouteDecision(SemanticIds.AE_TERMINAL_TRACE, "ae_terminal_trace_terminal_dark", false);
+            return new RouteDecision(SemanticIds.AE_TERMINAL_DARK_LEGACY, "ae_terminal_dark_state", false);
         }
         if (iconName.endsWith("terminal_medium")) {
-            return new RouteDecision(SemanticIds.AE_TERMINAL_TRACE, "ae_terminal_trace_terminal_medium", false);
+            return new RouteDecision(SemanticIds.AE_TERMINAL_MEDIUM_LEGACY, "ae_terminal_medium_state", false);
         }
         if (iconName.endsWith("terminal_bright")) {
-            return new RouteDecision(SemanticIds.AE_TERMINAL_TRACE, "ae_terminal_trace_terminal_bright", false);
+            return new RouteDecision(SemanticIds.AE_TERMINAL_BRIGHT_LEGACY, "ae_terminal_bright_state", false);
         }
         if (iconName.endsWith("fluid_terminal/lights_dark")) {
-            return new RouteDecision(SemanticIds.AE_TERMINAL_TRACE, "ae_terminal_trace_fluid_lights_dark", false);
+            return new RouteDecision(SemanticIds.AE_TERMINAL_DARK_LEGACY, "ae_terminal_fluid_lights_dark_state", false);
         }
         if (iconName.endsWith("fluid_terminal/lights_medium")) {
-            return new RouteDecision(SemanticIds.AE_TERMINAL_TRACE, "ae_terminal_trace_fluid_lights_medium", false);
+            return new RouteDecision(SemanticIds.AE_TERMINAL_MEDIUM_LEGACY, "ae_terminal_fluid_lights_medium_state", false);
         }
         if (iconName.endsWith("fluid_terminal/lights_bright")) {
-            return new RouteDecision(SemanticIds.AE_TERMINAL_TRACE, "ae_terminal_trace_fluid_lights_bright", false);
+            return new RouteDecision(SemanticIds.AE_TERMINAL_BRIGHT_LEGACY, "ae_terminal_fluid_lights_bright_state", false);
+        }
+        if (iconName.endsWith("controller_lights") || iconName.endsWith("controller_column_lights")
+            || iconName.endsWith("controller_conflict") || iconName.endsWith("controller_column_conflict")) {
+            return new RouteDecision(SemanticIds.AE_CONTROLLER_LIGHT, "ae_controller_precise_light_texture", false);
         }
         if (iconName.endsWith("drive_cell_states_emissive") || iconName.contains("drive_cell_states_emissive")) {
             return new RouteDecision(SemanticIds.AE_DRIVE_LED, "ae_drive_cell_states_emissive", false);

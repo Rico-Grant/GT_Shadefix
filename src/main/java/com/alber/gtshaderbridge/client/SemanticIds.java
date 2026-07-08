@@ -1,6 +1,9 @@
 package com.alber.gtshaderbridge.client;
 
 public final class SemanticIds {
+    public static final int AE_TERMINAL_DARK_LEGACY = 5072;
+    public static final int AE_TERMINAL_MEDIUM_LEGACY = 5073;
+    public static final int AE_TERMINAL_BRIGHT_LEGACY = 5074;
     public static final int AE_BODY = 12100;
     public static final int AE_UVL_LIGHT = 12101;
     public static final int AE_CONTROLLER_LIGHT = 12102;
@@ -29,6 +32,9 @@ public final class SemanticIds {
             + "12107 AE_CRAFTING_LIGHT, "
             + "12108 AE_MONITOR_LIGHT, "
             + "12109 AE_TERMINAL_TRACE, "
+            + "5072 AE_TERMINAL_DARK_LEGACY, "
+            + "5073 AE_TERMINAL_MEDIUM_LEGACY, "
+            + "5074 AE_TERMINAL_BRIGHT_LEGACY, "
             + "12110 OC_BODY, "
             + "12111 OC_LED_BAKED, "
             + "12112 OC_LED_TESR";
@@ -36,6 +42,12 @@ public final class SemanticIds {
 
     public static String nameOf(int id) {
         switch (id) {
+            case AE_TERMINAL_DARK_LEGACY:
+                return "AE_TERMINAL_DARK_LEGACY";
+            case AE_TERMINAL_MEDIUM_LEGACY:
+                return "AE_TERMINAL_MEDIUM_LEGACY";
+            case AE_TERMINAL_BRIGHT_LEGACY:
+                return "AE_TERMINAL_BRIGHT_LEGACY";
             case AE_BODY:
                 return "AE_BODY";
             case AE_UVL_LIGHT:
