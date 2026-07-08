@@ -226,6 +226,7 @@ public final class BakedQuadShaderRouter {
             || iconName.contains("blocks/motionsensor_")
             || iconName.contains("blocks/overlay/charger_")
             || iconName.contains("blocks/overlay/disassembler_")
+            || iconName.contains("blocks/overlay/diskdrive_")
             || iconName.contains("blocks/overlay/geolyzer_")
             || iconName.contains("blocks/overlay/powerdistributor_")
             || iconName.contains("blocks/overlay/adapter_on")
