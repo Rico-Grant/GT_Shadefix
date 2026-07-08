@@ -64,6 +64,13 @@ function Get-CompileClasspath {
         }
     }
 
+    $openComputersJar = Get-ChildItem -LiteralPath $mods -Filter "OpenComputers-MC1.12.2-*.jar" -ErrorAction SilentlyContinue |
+        Sort-Object LastWriteTime -Descending |
+        Select-Object -First 1
+    if ($openComputersJar) {
+        $paths.Add($openComputersJar.FullName)
+    }
+
     return (($paths | Select-Object -Unique | ForEach-Object { $_.Replace("\", "/") }) -join [IO.Path]::PathSeparator)
 }
 

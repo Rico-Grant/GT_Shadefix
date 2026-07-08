@@ -1,6 +1,7 @@
 package com.alber.gtshaderbridge.mixin;
 
 import com.alber.gtshaderbridge.client.SemanticTransportProbe;
+import li.cil.oc.common.tileentity.Raid;
 import net.minecraft.util.ResourceLocation;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -17,12 +18,12 @@ public abstract class MixinRaidRenderer {
         method = "render(Lli/cil/oc/common/tileentity/Raid;DDDFIF)V",
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/client/renderer/Tessellator;draw()V",
+            target = "Lnet/minecraft/client/renderer/Tessellator;func_78381_a()V",
             shift = At.Shift.BEFORE
         ),
         require = 1
     )
-    private void gtshaderbridge$beginRaidOverlayDraw(CallbackInfo ci) {
+    private void gtshaderbridge$beginRaidOverlayDraw(Raid raid, double x, double y, double z, float partialTicks, int destroyStage, float alpha, CallbackInfo ci) {
         GTSHADERBRIDGE_ROUTE.set(SemanticTransportProbe.beginOcTesrRoute("RaidRenderer", "drawSlotOverlayBatch", RAID_SLOT_OVERLAYS));
     }
 
@@ -30,12 +31,12 @@ public abstract class MixinRaidRenderer {
         method = "render(Lli/cil/oc/common/tileentity/Raid;DDDFIF)V",
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/client/renderer/Tessellator;draw()V",
+            target = "Lnet/minecraft/client/renderer/Tessellator;func_78381_a()V",
             shift = At.Shift.AFTER
         ),
         require = 1
     )
-    private void gtshaderbridge$endRaidOverlayDraw(CallbackInfo ci) {
+    private void gtshaderbridge$endRaidOverlayDraw(Raid raid, double x, double y, double z, float partialTicks, int destroyStage, float alpha, CallbackInfo ci) {
         closeRoute();
     }
 
