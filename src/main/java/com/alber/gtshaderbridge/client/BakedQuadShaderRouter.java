@@ -192,7 +192,7 @@ public final class BakedQuadShaderRouter {
             return new RouteDecision(SemanticIds.AE_CONTROLLER_LIGHT, "ae_controller_precise_light_texture", false);
         }
         if (iconName.contains("blocks/crafting/")) {
-            if (iconName.endsWith("_light") || iconName.endsWith("light_base") || iconName.contains("_light")) {
+            if (iconName.endsWith("_light") || iconName.contains("_light")) {
                 return new RouteDecision(SemanticIds.AE_CRAFTING_LIGHT, "ae_crafting_precise_light_texture", false);
             }
             return null;
@@ -225,6 +225,7 @@ public final class BakedQuadShaderRouter {
     private static boolean shouldUseOcGenericEmission(String iconName) {
         return iconName.contains("blocks/printer_")
             || iconName.contains("blocks/charger_")
+            || iconName.contains("blocks/diskdrive_front")
             || iconName.contains("blocks/redstone_")
             || iconName.contains("blocks/motionsensor_")
             || iconName.contains("blocks/overlay/charger_")

@@ -8,6 +8,7 @@
     "MixinBufferBuilder",
     "MixinCaseRenderer",
     "MixinCCRenderState",
+    "MixinDiskDriveRenderer",
     "MixinMetaTileEntityRenderer",
     "MixinMicrocontrollerRenderer",
     "MixinPipeRenderer",
