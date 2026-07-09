@@ -192,6 +192,12 @@ public final class BakedQuadShaderRouter {
             || iconName.endsWith("controller_conflict") || iconName.endsWith("controller_column_conflict")) {
             return new RouteDecision(SemanticIds.AE_CONTROLLER_LIGHT, "ae_controller_precise_light_texture", false);
         }
+        if (iconName.contains("blocks/crafting/")) {
+            if (iconName.endsWith("_light") || iconName.endsWith("light_base") || iconName.contains("_light")) {
+                return new RouteDecision(SemanticIds.AE_CRAFTING_LIGHT, "ae_crafting_precise_light_texture", false);
+            }
+            return null;
+        }
         if (iconName.endsWith("drive_cell_states_emissive") || iconName.contains("drive_cell_states_emissive")) {
             return new RouteDecision(SemanticIds.AE_DRIVE_LED, "ae_drive_cell_states_emissive", false);
         }
@@ -214,21 +220,7 @@ public final class BakedQuadShaderRouter {
             }
         }
 
-        if (shouldUseAeGenericEmission(iconName)) {
-            return new RouteDecision(SemanticIds.OC_LED_BAKED, "ae_generic_high_saturation_pixel_mask", false);
-        }
-
         return null;
-    }
-
-    private static boolean shouldUseAeGenericEmission(String iconName) {
-        return !iconName.contains("parts/cable/")
-            && !iconName.contains("terminal")
-            && !iconName.contains("monitor_light")
-            && !iconName.contains("monitor_sides")
-            && !iconName.contains("monitor_sides_status")
-            && !iconName.contains("drive_cell")
-            && !iconName.contains("controller");
     }
 
     private static boolean shouldUseOcGenericEmission(String iconName) {
