@@ -7,7 +7,6 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -348,11 +347,6 @@ public final class BakedQuadShaderRouter {
         return value instanceof Boolean && !((Boolean) value).booleanValue();
     }
 
-    private static EnumFacing quadFace(BakedQuad quad) {
-        Object value = invoke(quad, new String[] {"getFace", "func_178210_d"});
-        return value instanceof EnumFacing ? (EnumFacing) value : null;
-    }
-
     @SuppressWarnings("unchecked")
     private static List<BakedQuad> modelQuads(IBakedModel model, IBlockState state, EnumFacing face, long rand) {
         Object value = invoke(model, new String[] {"func_188616_a", "getQuads"},
@@ -418,7 +412,6 @@ public final class BakedQuadShaderRouter {
         private final long rand;
         private IdentityHashMap<int[], BakedQuad> quadsByVertexData;
         private List<BakedQuad> quads;
-        private EnumSet<EnumFacing> poweredTerminalFaces;
         private boolean anyPoweredTerminalFace;
 
         private RenderContext(RenderContext parent) {
@@ -458,11 +451,7 @@ public final class BakedQuadShaderRouter {
 
         private boolean isTerminalFacePowered(BakedQuad quad) {
             ensureQuadsLoaded();
-            EnumFacing face = quadFace(quad);
-            if (face != null && poweredTerminalFaces.contains(face)) {
-                return true;
-            }
-            return face == null && anyPoweredTerminalFace;
+            return anyPoweredTerminalFace;
         }
 
         private void ensureQuadsLoaded() {
@@ -483,7 +472,6 @@ public final class BakedQuadShaderRouter {
                 GTShaderBridge.LOGGER.warn("[GTShaderBridge] Failed to inspect AE2/OpenComputers baked quads; routing skipped for this model", e);
                 quads.clear();
                 quadsByVertexData.clear();
-                poweredTerminalFaces = EnumSet.noneOf(EnumFacing.class);
                 anyPoweredTerminalFace = false;
             }
         }
@@ -507,7 +495,6 @@ public final class BakedQuadShaderRouter {
         }
 
         private void scanPoweredTerminalFaces() {
-            poweredTerminalFaces = EnumSet.noneOf(EnumFacing.class);
             anyPoweredTerminalFace = false;
             for (int i = 0; i < quads.size(); i++) {
                 BakedQuad quad = quads.get(i);
@@ -516,10 +503,6 @@ public final class BakedQuadShaderRouter {
                     continue;
                 }
 
-                EnumFacing face = quadFace(quad);
-                if (face != null) {
-                    poweredTerminalFaces.add(face);
-                }
                 anyPoweredTerminalFace = true;
             }
         }
